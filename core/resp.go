@@ -118,7 +118,7 @@ func readInt64(data []byte) (int64, int, error) {
 // returns the string, the cursor (up to where it read) and the error
 func readBulkString(data []byte) (string, int, error) {
 	// Expect: $<intLength>\r\n<stringAsLongAsLength>\r\n
-	if len(data) < 4 || data[0] != '$' {
+	if len(data) < 4 {
 		return "", 0, ErrInvalidBulkString
 	}
 
@@ -148,6 +148,43 @@ func readBulkString(data []byte) (string, int, error) {
 	return value, pos + 2, nil
 }
 
+// readArray - https://redis.io/docs/latest/develop/reference/protocol-spec/#arrays
+// reads a RESP encodede error from data and
+// returns the array, the cursor (up to where it read) and the error
+func readArray(data []byte) ([]any, int, error) {
+	// Expect: *<number_of_elements>\r\n<element_1><element_2>...<element_N>
+	if len(data) < 5 {
+		return nil, 0, ErrInvalidArray
+	}
+
+	pos := 1
+
+	len, cursor, err := readLength(data[pos:])
+	if err != nil {
+		return nil, 0, err
+	}
+	pos += cursor
+
+	elems := make([]any, len)
+
+	for i := range elems {
+		e, cursor, err := DecodeOne(data[pos:])
+		if err != nil {
+			return nil, 0, err
+		}
+		elems[i] = e
+		pos += cursor
+	}
+
+	return elems, pos, nil
+}
+
+// readLength parses an ASCII-encoded non-negative integer from data.
+// It reads digits until it encounters a CRLF ("\r\n") sequence.
+// Returns:
+//   - The parsed integer value.
+//   - The number of bytes consumed (digits + 2 bytes for CRLF).
+//   - An error if the format is invalid, non-numeric, or missing the CRLF.
 func readLength(data []byte) (int, int, error) {
 	if len(data) == 0 {
 		return 0, 0, ErrInvalidInt64
@@ -170,11 +207,6 @@ func readLength(data []byte) (int, int, error) {
 	}
 
 	return length, pos + 2, nil
-}
-
-// readArray - https://redis.io/docs/latest/develop/reference/protocol-spec/#arrays
-func readArray(data []byte) (any, int, error) {
-	panic("unimplemented")
 }
 
 // TODO: Implement the encodings for the other types as well (like Doubles, Big numbers, Maps...)

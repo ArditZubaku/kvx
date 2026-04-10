@@ -1,6 +1,7 @@
 package core_test
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"testing"
@@ -80,6 +81,35 @@ func TestBulkStringDecode(t *testing.T) {
 
 	// TODO: I should add tests for the failing cases as well
 	execCases(t, cases)
+}
+
+func TestArrayDecode(t *testing.T) {
+	cases := map[string][]any{
+		"*0\r\n":                                                   {},
+		"*2\r\n$5\r\nhello\r\n$5\r\nworld\r\n":                     {"hello", "world"},
+		"*3\r\n:1\r\n:2\r\n:3\r\n":                                 {int64(1), int64(2), int64(3)},
+		"*5\r\n:1\r\n:2\r\n:3\r\n:4\r\n$5\r\nhello\r\n":            {int64(1), int64(2), int64(3), int64(4), "hello"},
+		"*2\r\n*3\r\n:1\r\n:2\r\n:3\r\n*2\r\n+Hello\r\n-World\r\n": {[]int64{int64(1), int64(2), int64(3)}, []any{"Hello", "World"}},
+	}
+
+	for k, v := range cases {
+		res, _ := core.Decode([]byte(k))
+		arr, ok := res.([]any)
+		if !ok {
+			t.Fail()
+		}
+
+		if len(arr) != len(v) {
+			t.Fail()
+		}
+		t.Log("arr", len(arr))
+		t.Log("v", len(v))
+		for i := range arr {
+			if fmt.Sprintf("%v", v[i]) != fmt.Sprintf("%v", arr[i]) {
+				t.Fail()
+			}
+		}
+	}
 }
 
 func execCases[T comparable](t *testing.T, cases map[string]T) {
