@@ -32,6 +32,16 @@ func TestInt64(t *testing.T) {
 	execCases(t, cases)
 }
 
+func TestBulkStringDecode(t *testing.T) {
+	cases := map[string]string{
+		"$5\r\nhello\r\n": "hello",
+		"$0\r\n\r\n":      "",
+	}
+
+	// TODO: I should add tests for the failing cases as well
+	execCases(t, cases)
+}
+
 func execCases[T comparable](t *testing.T, cases map[string]T) {
 	for k, v := range cases {
 		res, _ := core.Decode([]byte(k))

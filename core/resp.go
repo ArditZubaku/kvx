@@ -100,13 +100,74 @@ func readInt64(data []byte) (int64, int, error) {
 }
 
 // readBulkString - https://redis.io/docs/latest/develop/reference/protocol-spec/#bulk-strings
-func readBulkString(data []byte) (any, int, error) {
-	panic("unimplemented")
+// reads a RESP encodede error from data and
+// returns the string, the cursor (up to where it read) and the error
+func readBulkString(data []byte) (string, int, error) {
+	// Expect: $<intLength>\r\n<stringAsLongAsLength>\r\n
+	if len(data) < 4 || data[0] != '$' {
+		return "", 0, ErrInvalidBulkString
+	}
+
+	pos := 1
+
+	// parse length
+	length, cursor, err := readLength(data[pos:])
+	if err != nil {
+		return "", 0, err
+	}
+	pos += cursor
+
+	// bounds check for data + CRLF
+	if pos+length+2 > len(data) {
+		return "", 0, ErrInvalidBulkString
+	}
+
+	// extract string
+	value := string(data[pos : pos+length])
+	pos += length
+
+	// validate trailing CRLF
+	if data[pos] != '\r' || data[pos+1] != '\n' {
+		return "", 0, ErrMissingCRLF
+	}
+
+	return value, pos + 2, nil
+}
+
+func readLength(data []byte) (int, int, error) {
+	if len(data) == 0 {
+		return 0, 0, ErrInvalidInt64
+	}
+
+	pos, length := 0, 0
+
+	for pos < len(data) && data[pos] != '\r' {
+		c := data[pos]
+		if c < '0' || c > '9' {
+			return 0, 0, ErrInvalidInt64
+		}
+		length = length*10 + int(c-'0')
+		pos++
+	}
+
+	// validate CRLF
+	if pos+1 >= len(data) || data[pos] != '\r' || data[pos+1] != '\n' {
+		return 0, 0, ErrMissingCRLF
+	}
+
+	return length, pos + 2, nil
 }
 
 // readArray - https://redis.io/docs/latest/develop/reference/protocol-spec/#arrays
 func readArray(data []byte) (any, int, error) {
 	panic("unimplemented")
+}
+
+func validateCRLF(pos int, data []byte) (int, int, error) {
+	// validate CRLF
+	if pos+1 >= len(data) || data[pos] != '\r' || data[pos+1] != '\n' {
+		return 0, 0, ErrMissingCRLF
+	}
 }
 
 // TODO: Implement the encodings for the other types as well (like Doubles, Big numbers, Maps...)
