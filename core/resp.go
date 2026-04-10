@@ -1,7 +1,9 @@
 // core contains everything related to the RESP protocol - Redis serialization protocol
 package core
 
-import "bytes"
+import (
+	"bytes"
+)
 
 func Decode(data []byte) (any, error) {
 	if len(data) == 0 {
@@ -59,8 +61,42 @@ func readError(data []byte) (string, int, error) {
 }
 
 // readInt64 - https://redis.io/docs/latest/develop/reference/protocol-spec/#integers
-func readInt64(data []byte) (any, int, error) {
-	panic("unimplemented")
+// reads a RESP encodede error from data and
+// returns the integer value, the cursor (up to where it read) and the error
+func readInt64(data []byte) (int64, int, error) {
+	// Expect: :<string>\r\n
+	if len(data) < 3 {
+		return 0, 0, ErrInvalidInt64
+	}
+
+	pos := 1
+	sign := int64(1)
+
+	if pos < len(data) && data[pos] == '-' {
+		sign = -1
+		pos++
+	}
+
+	if pos >= len(data) {
+		return 0, 0, ErrInvalidInt64
+	}
+
+	var value int64
+
+	for ; data[pos] != '\r'; pos++ {
+		c := data[pos]
+		if c < '0' || c > '9' {
+			return 0, 0, ErrInvalidInt64
+		}
+		value = value*10 + int64(c-'0')
+	}
+
+	// validate CRLF
+	if pos+1 >= len(data) || data[pos] != '\r' || data[pos+1] != '\n' {
+		return 0, 0, ErrMissingCRLF
+	}
+
+	return sign * value, pos + 2, nil
 }
 
 // readBulkString - https://redis.io/docs/latest/develop/reference/protocol-spec/#bulk-strings
