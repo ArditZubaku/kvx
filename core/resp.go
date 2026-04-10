@@ -3,6 +3,7 @@ package core
 
 import (
 	"bytes"
+	"math"
 )
 
 func Decode(data []byte) (any, error) {
@@ -70,25 +71,38 @@ func readInt64(data []byte) (int64, int, error) {
 	}
 
 	pos := 1
-	sign := int64(1)
-
-	if pos < len(data) && data[pos] == '-' {
-		sign = -1
+	isNegative := false
+	if data[pos] == '-' {
+		isNegative = true
 		pos++
 	}
 
-	if pos >= len(data) {
-		return 0, 0, ErrInvalidInt64
+	var value int64
+	startPos := pos
+
+	for pos < len(data) && data[pos] >= '0' && data[pos] <= '9' {
+		digit := int64(data[pos] - '0')
+
+		// Overflow check for negative accumulation
+		// We check if value < (MinInt64 + digit) / 10
+		if isNegative {
+			if value < (math.MinInt64+digit)/10 {
+				return 0, 0, ErrIntegerOverflow
+			}
+			value = value*10 - digit
+		} else {
+			// For positive, we check against MaxInt64
+			if value > (math.MaxInt64-digit)/10 {
+				return 0, 0, ErrIntegerOverflow
+			}
+			value = value*10 + digit
+		}
+		pos++
 	}
 
-	var value int64
-
-	for ; data[pos] != '\r'; pos++ {
-		c := data[pos]
-		if c < '0' || c > '9' {
-			return 0, 0, ErrInvalidInt64
-		}
-		value = value*10 + int64(c-'0')
+	// check if we actually parsed any digits
+	if pos == startPos {
+		return 0, 0, ErrInvalidInt64
 	}
 
 	// validate CRLF
@@ -96,7 +110,7 @@ func readInt64(data []byte) (int64, int, error) {
 		return 0, 0, ErrMissingCRLF
 	}
 
-	return sign * value, pos + 2, nil
+	return value, pos + 2, nil
 }
 
 // readBulkString - https://redis.io/docs/latest/develop/reference/protocol-spec/#bulk-strings
@@ -161,13 +175,6 @@ func readLength(data []byte) (int, int, error) {
 // readArray - https://redis.io/docs/latest/develop/reference/protocol-spec/#arrays
 func readArray(data []byte) (any, int, error) {
 	panic("unimplemented")
-}
-
-func validateCRLF(pos int, data []byte) (int, int, error) {
-	// validate CRLF
-	if pos+1 >= len(data) || data[pos] != '\r' || data[pos+1] != '\n' {
-		return 0, 0, ErrMissingCRLF
-	}
 }
 
 // TODO: Implement the encodings for the other types as well (like Doubles, Big numbers, Maps...)

@@ -1,6 +1,8 @@
 package core_test
 
 import (
+	"math"
+	"strconv"
 	"testing"
 
 	"github.com/ArditZubaku/kvx/core"
@@ -30,6 +32,44 @@ func TestInt64(t *testing.T) {
 	}
 
 	execCases(t, cases)
+}
+
+func TestReadInt64_Overflow(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr error
+	}{
+		{
+			name:    "Max Int64",
+			input:   ":" + strconv.FormatInt(math.MaxInt64, 10) + "\r\n",
+			wantErr: nil,
+		},
+		{
+			name:    "Overflow Max Int64 by 1",
+			input:   ":9223372036854775808\r\n", // Max + 1
+			wantErr: core.ErrIntegerOverflow,
+		},
+		{
+			name:    "Massive Overflow",
+			input:   ":9999999999999999999999999\r\n",
+			wantErr: core.ErrIntegerOverflow,
+		},
+		{
+			name:    "Min Int64",
+			input:   ":" + strconv.FormatInt(math.MinInt64, 10) + "\r\n",
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := core.Decode([]byte(tt.input))
+			if err != tt.wantErr {
+				t.Errorf("readInt64() error = %v, wantErr %v, input %v", err, tt.wantErr, tt.input)
+			}
+		})
+	}
 }
 
 func TestBulkStringDecode(t *testing.T) {
