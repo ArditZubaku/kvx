@@ -36,6 +36,21 @@ func DecodeOne(data []byte) (any, int, error) {
 	return nil, 0, nil
 }
 
+func DecodeArrayString(data []byte) ([]string, error) {
+	value, err := Decode(data)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Maybe I could make Decode be a generic function instead of this
+	tokens, ok := value.([]string)
+	if !ok {
+		return nil, ErrInvalidType
+	}
+
+	return tokens, nil
+}
+
 // readSimpleString - https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-strings
 // reads a RESP encoded simple string from data and
 // returns the string, the cursor (up to where it read) and the error

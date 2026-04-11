@@ -10,4 +10,5 @@ var (
 	ErrInvalidBulkString   = errors.New("invalid bulk string")
 	ErrMissingCRLF         = errors.New("invalid simple string: missing CRLF")
 	ErrIntegerOverflow     = errors.New("integer overflow")
+	ErrInvalidType         = errors.New("invalid type")
 )
