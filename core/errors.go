@@ -11,4 +11,6 @@ var (
 	ErrMissingCRLF         = errors.New("invalid simple string: missing CRLF")
 	ErrIntegerOverflow     = errors.New("integer overflow")
 	ErrInvalidType         = errors.New("invalid type")
+	// This is the exact error message Redis returns
+	ErrPingInvalidArgs = errors.New("ERR wrong number of arguments for 'PING' command")
 )

@@ -45,10 +45,7 @@ func RunSyncTCPServer() {
 				log.Println("Error:", err)
 			}
 
-			log.Println("Command:", cmd)
-			if err = respond(cmd, conn); err != nil {
-				log.Println("Error on write:", err)
-			}
+			respond(cmd, conn)
 		}
 	}
 }
@@ -71,8 +68,9 @@ func readCommand(conn net.Conn) (*core.RedisCmd, error) {
 	}, nil
 }
 
-func respond(cmd string, conn net.Conn) error {
-	_, err := conn.Write([]byte(cmd))
-
-	return err
+func respond(cmd *core.RedisCmd, conn net.Conn) {
+	if err := core.EvalAndRespond(cmd, conn); err != nil {
+		// respond with error
+		fmt.Fprintf(conn, "-%s\r\n", err)
+	}
 }

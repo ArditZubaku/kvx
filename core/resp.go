@@ -3,7 +3,9 @@ package core
 
 import (
 	"bytes"
+	"fmt"
 	"math"
+	"net"
 )
 
 func Decode(data []byte) (any, error) {
@@ -43,12 +45,45 @@ func DecodeArrayString(data []byte) ([]string, error) {
 	}
 
 	// TODO: Maybe I could make Decode be a generic function instead of this
-	tokens, ok := value.([]string)
+	arr, ok := value.([]any)
 	if !ok {
 		return nil, ErrInvalidType
 	}
 
+	tokens := make([]string, len(arr))
+	for i, v := range arr {
+		s, ok := v.(string)
+		if !ok {
+			return nil, ErrInvalidType
+		}
+		tokens[i] = s
+	}
+
 	return tokens, nil
+}
+func Encode(value any, isSimple bool) []byte {
+	var b []byte
+
+	switch v := value.(type) {
+	case string:
+		if isSimple {
+			return fmt.Appendf(b, "+%s\r\n", v)
+		}
+
+		return fmt.Appendf(b, "$%d\r\n%s\r\n", len(v), v)
+	}
+
+	return b
+}
+
+func EvalAndRespond(cmd *RedisCmd, conn net.Conn) error {
+	switch cmd.Cmd {
+	case "PING":
+		return evalPING(cmd.Args, conn)
+	default:
+		// for now
+		return evalPING(cmd.Args, conn)
+	}
 }
 
 // readSimpleString - https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-strings
@@ -222,6 +257,24 @@ func readLength(data []byte) (int, int, error) {
 	}
 
 	return length, pos + 2, nil
+}
+
+func evalPING(args []string, conn net.Conn) error {
+	var b []byte
+
+	if len(args) >= 2 {
+		return ErrPingInvalidArgs
+	}
+
+	if len(args) == 0 {
+		b = Encode("PONG", true)
+	} else {
+		b = Encode(args[0], false)
+	}
+
+	// TODO: Rethink whether this should write the data or just return it
+	_, err := conn.Write(b)
+	return err
 }
 
 // TODO: Implement the encodings for the other types as well (like Doubles, Big numbers, Maps...)
