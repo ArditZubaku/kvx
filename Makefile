@@ -21,7 +21,7 @@ deploy:
 		--network host \
 		kvx:latest
 
-benchmark:
+benchmark-single-connection:
 	@docker run -it --rm \
 		--network host \
 		redis redis-benchmark \
@@ -31,11 +31,38 @@ benchmark:
 		-h 127.0.0.1 \
 		-p 7379
 
+benchmark-500-concurrent:
+	@docker run -it --rm \
+		--network host \
+		redis redis-benchmark \
+		-n 10000 \
+		-t ping_mbulk \
+		-c 500 \
+		-h 127.0.0.1 \
+		-p 7379
+
 redis:
 	@docker run -it --rm --network host redis
 
-benchmark-redis:
-	@docker run -it --rm --network host redis redis-benchmark -n 10000 -t ping_mbulk -c 1 -h 127.0.0.1 -p 6379
+benchmark-redis-single-connection:
+	@docker run -it --rm \
+		--network host \
+		redis redis-benchmark \
+		-n 10000 \
+		-t ping_mbulk \
+		-c 1 \
+		-h 127.0.0.1 \
+		-p 6379
+
+benchmark-redis-500-concurrent:
+	@docker run -it --rm \
+		--network host \
+		redis redis-benchmark \
+		-n 10000 \
+		-t ping_mbulk \
+		-c 500 \
+		-h 127.0.0.1 \
+		-p 6379
 
 # NOTE: This is super slow compared to the one above because of the networking
 # redis:
