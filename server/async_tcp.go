@@ -104,7 +104,11 @@ func RunAsyncTCPServer() error {
 					continue
 				}
 
-				log.Printf("Accepted connection from %s", sockAddr)
+				if addr, ok := sockAddr.(*syscall.SockaddrInet4); ok {
+					log.Printf("Accepted connection from %s:%d", net.IP(addr.Addr[:]).String(), addr.Port)
+				} else {
+					log.Printf("Accepted connection from %+v", sockAddr)
+				}
 
 				// set the client socket non-blocking
 				if err := syscall.SetNonblock(connFd, true); err != nil {
