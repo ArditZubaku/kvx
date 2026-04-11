@@ -4,8 +4,8 @@ package core
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math"
-	"net"
 )
 
 func Decode(data []byte) (any, error) {
@@ -76,7 +76,7 @@ func Encode(value any, isSimple bool) []byte {
 	return b
 }
 
-func EvalAndRespond(cmd *RedisCmd, conn net.Conn) error {
+func EvalAndRespond(cmd *RedisCmd, conn io.ReadWriter) error {
 	switch cmd.Cmd {
 	case "PING":
 		return evalPING(cmd.Args, conn)
@@ -259,7 +259,7 @@ func readLength(data []byte) (int, int, error) {
 	return length, pos + 2, nil
 }
 
-func evalPING(args []string, conn net.Conn) error {
+func evalPING(args []string, conn io.ReadWriter) error {
 	var b []byte
 
 	if len(args) >= 2 {
