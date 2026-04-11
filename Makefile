@@ -4,6 +4,12 @@ run:
 ping:
 	@docker run -it --rm redis redis-cli -h host.docker.internal -p 7379 ping
 
+logs:
+	@docker logs kvx
+
+logs-live:
+	@docker logs -f kvx
+
 cli:
 	@docker run -it --rm redis redis-cli
 
