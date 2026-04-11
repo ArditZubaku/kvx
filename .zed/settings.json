@@ -1,0 +1,12 @@
+{
+  "lsp": {
+    "gopls": {
+      "initialization_options": {
+        "env": {
+          "GOARCH": "amd64",
+          "GOOS": "linux",
+        },
+      },
+    },
+  },
+}
