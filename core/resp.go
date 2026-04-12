@@ -65,7 +65,7 @@ func Encode(value any) []byte {
 	switch v := value.(type) {
 	case string:
 		return fmt.Appendf(nil, "$%d\r\n%s\r\n", len(v), v)
-	case int64:
+	case int, int8, int16, int32, int64:
 		return fmt.Appendf(nil, ":%d\r\n", v)
 	default:
 		return nilResponse
