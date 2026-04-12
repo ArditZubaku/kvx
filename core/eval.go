@@ -3,9 +3,11 @@ package core
 import (
 	"io"
 	"strconv"
+	"time"
 )
 
 var okResponse = []byte("+OK\r\n")
+var nilResponse = []byte("$-1\r\n")
 
 func EvalAndRespond(cmd *RedisCmd, conn io.ReadWriter) error {
 	switch cmd.Cmd {
@@ -82,8 +84,32 @@ func evalSET(args []string, conn io.ReadWriter) error {
 	return nil
 }
 
+// evalGET - GET key
 func evalGET(args []string, conn io.ReadWriter) error {
-	panic("unimplemented")
+	// it has to be exactly 1 arg
+	if len(args) != 1 {
+		return ErrGetInvalidArgs
+	}
+
+	key := args[0]
+	obj := Get(key)
+
+	// if key does not exist, return RESP encoded nil
+	if obj == nil {
+		conn.Write(nilResponse)
+		return nil
+	}
+
+	// if key already expired then return nil
+	if obj.ExpiresAt != -1 && obj.ExpiresAt <= time.Now().UnixMilli() {
+		conn.Write(nilResponse)
+		return nil
+	}
+
+	// return the RESP encoded value
+	conn.Write(Encode(obj.Value, false))
+
+	return nil
 }
 
 func evalTTL(args []string, conn io.ReadWriter) error {
