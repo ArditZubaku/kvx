@@ -21,6 +21,10 @@ func EvalAndRespond(cmd *RedisCmd, conn io.ReadWriter) error {
 		return evalGET(cmd.Args, conn)
 	case "TTL":
 		return evalTTL(cmd.Args, conn)
+	case "DEL":
+		return evalDEL(cmd.Args, conn)
+	case "EXPIRE":
+		return evalEXPIRE(cmd.Args, conn)
 	default:
 		// for now
 		return evalPING(cmd.Args, conn)
@@ -147,4 +151,21 @@ func evalTTL(args []string, conn io.ReadWriter) error {
 
 	_, err := conn.Write(Encode(expirationMs / 1_000))
 	return err
+}
+
+func evalDEL(args []string, conn io.ReadWriter) error {
+	deleted := 0
+
+	for _, key := range args {
+		if ok := Del(key); ok {
+			deleted++
+		}
+	}
+
+	_, err := conn.Write(Encode(deleted))
+	return err
+}
+
+func evalEXPIRE(args []string, conn io.ReadWriter) error {
+	panic("unimplemented")
 }
