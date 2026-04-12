@@ -8,6 +8,8 @@ import (
 
 var okResponse = []byte("+OK\r\n")
 var nilResponse = []byte("$-1\r\n")
+var notExistsResponse = []byte(":-2\r\n")
+var neverExpiresResponse = []byte(":-1\r\n")
 
 func EvalAndRespond(cmd *RedisCmd, conn io.ReadWriter) error {
 	switch cmd.Cmd {
@@ -112,6 +114,40 @@ func evalGET(args []string, conn io.ReadWriter) error {
 	return nil
 }
 
+// evalTTL - TTL key
 func evalTTL(args []string, conn io.ReadWriter) error {
-	panic("unimplemented")
+	// it has to be exactly 1 arg
+	if len(args) != 1 {
+		return ErrTTLInvalidArgs
+	}
+
+	key := args[0]
+	obj := Get(key)
+
+	// if key does not exist, return RESP encoded -2
+	// denoting that the key does not exist (that's how Redis responds)
+	if obj == nil {
+		conn.Write(notExistsResponse)
+		return nil
+	}
+
+	// if object exists, but no expiration is set on it then send `-1` (meaning never expires)
+	if obj.ExpiresAt == -1 {
+		conn.Write(neverExpiresResponse)
+		return nil
+	}
+
+	// compute the time remaining for the key to expire
+	// return the RESP encoded value of it
+	expirationMs := obj.ExpiresAt - time.Now().UnixMilli()
+
+	// if key expired -> therefore key does not exist, return -2
+	if expirationMs < 0 {
+		conn.Write(notExistsResponse)
+		return nil
+	}
+
+	conn.Write(Encode(expirationMs/1_000, false))
+
+	return nil
 }

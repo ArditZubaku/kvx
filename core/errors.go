@@ -16,6 +16,7 @@ var (
 	ErrPingInvalidArgs      = errors.New("ERR wrong number of arguments for 'ping' command")
 	ErrSetInvalidArgs       = errors.New("(error) ERR wrong number of arguments for 'set' command")
 	ErrGetInvalidArgs       = errors.New("(error) ERR wrong number of arguments for 'get' command")
+	ErrTTLInvalidArgs       = errors.New("(error) ERR wrong number of arguments for 'ttl' command")
 	ErrSyntaxError          = errors.New("(error) ERR syntax error")
 	ErrNotIntegerOutOfRange = errors.New("(error) ERR value is not an integer or out of range")
 )
