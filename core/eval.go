@@ -50,6 +50,8 @@ func evalPING(args []string, conn io.ReadWriter) error {
 }
 
 // evalSET - SET key value [NX | XX] [GET] [EX seconds | PX milliseconds | EXAT unix-sec | PXAT unix-ms] [KEEPTTL]
+//
+// SET assigns a value to a key, optionally with conditions and expiration.
 func evalSET(args []string, conn io.ReadWriter) error {
 	if len(args) <= 1 {
 		return ErrSetInvalidArgs
@@ -90,6 +92,8 @@ func evalSET(args []string, conn io.ReadWriter) error {
 }
 
 // evalGET - GET key
+//
+// GET returns the value stored at a key (or nil if it doesn’t exist)
 func evalGET(args []string, conn io.ReadWriter) error {
 	// it has to be exactly 1 arg
 	if len(args) != 1 {
@@ -117,6 +121,8 @@ func evalGET(args []string, conn io.ReadWriter) error {
 }
 
 // evalTTL - TTL key
+//
+// TTL returns the remaining time-to-live of a key in seconds (-1 if no expiry, -2 if missing)
 func evalTTL(args []string, conn io.ReadWriter) error {
 	// it has to be exactly 1 arg
 	if len(args) != 1 {
@@ -153,6 +159,9 @@ func evalTTL(args []string, conn io.ReadWriter) error {
 	return err
 }
 
+// evalDEL - DEL key [key ...]
+//
+// DEL removes one or more keys from Redis and returns how many were successfully deleted.
 func evalDEL(args []string, conn io.ReadWriter) error {
 	deleted := 0
 
