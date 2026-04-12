@@ -4,7 +4,6 @@ package core
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"math"
 )
 
@@ -74,16 +73,6 @@ func Encode(value any, isSimple bool) []byte {
 	}
 
 	return b
-}
-
-func EvalAndRespond(cmd *RedisCmd, conn io.ReadWriter) error {
-	switch cmd.Cmd {
-	case "PING":
-		return evalPING(cmd.Args, conn)
-	default:
-		// for now
-		return evalPING(cmd.Args, conn)
-	}
 }
 
 // readSimpleString - https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-strings
@@ -257,24 +246,6 @@ func readLength(data []byte) (int, int, error) {
 	}
 
 	return length, pos + 2, nil
-}
-
-func evalPING(args []string, conn io.ReadWriter) error {
-	var b []byte
-
-	if len(args) >= 2 {
-		return ErrPingInvalidArgs
-	}
-
-	if len(args) == 0 {
-		b = Encode("PONG", true)
-	} else {
-		b = Encode(args[0], false)
-	}
-
-	// TODO: Rethink whether this should write the data or just return it
-	_, err := conn.Write(b)
-	return err
 }
 
 // TODO: Implement the encodings for the other types as well (like Doubles, Big numbers, Maps...)
