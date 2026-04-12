@@ -5,12 +5,17 @@ import (
 	"log"
 	"net"
 	"syscall"
+	"time"
 
 	"github.com/ArditZubaku/kvx/config"
 	"github.com/ArditZubaku/kvx/core"
 )
 
 var connectedClients = 0
+
+// TODO: Redis does it 10x a second, maybe make this configurable
+var cronFrequency = 1 * time.Second
+var lastCronExecTime = time.Now()
 
 func RunAsyncTCPServer() error {
 	log.Println("Starting an asynchronous TCP server on", config.Host, config.Port)
@@ -93,6 +98,12 @@ func RunAsyncTCPServer() error {
 	}
 
 	for {
+		// TODO: Think about the case when epoll is blocked and the cron needs to run?
+		if time.Now().After(lastCronExecTime.Add(cronFrequency)) {
+			core.DeleteExpiredKeys()
+			lastCronExecTime = time.Now()
+		}
+
 		// see if any fd is ready for IO
 		// newEvents is basically the number of events you want to read out of `events`,
 		// the new ones that Epoll has put in `events`
