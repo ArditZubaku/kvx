@@ -11,7 +11,11 @@ logs-live:
 	@docker logs -f kvx
 
 cli:
-	@docker run -it --rm redis redis-cli
+	@docker run -it --rm \
+		--network host \
+		redis redis-cli \
+		-h 127.0.0.1 \
+		-p 7379
 
 deploy:
 	@docker build -t kvx:latest .
