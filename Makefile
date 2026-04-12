@@ -1,6 +1,9 @@
 run:
 	@go build -o kvx . && (trap 'go clean; exit' INT TERM EXIT; ./kvx) # runs clean no matter how the program exits
 
+build:
+	@docker build -t kvx:latest .
+
 ping:
 	@docker run -it --rm redis redis-cli -h host.docker.internal -p 7379 ping
 
