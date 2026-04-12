@@ -1,5 +1,7 @@
 # kvx
 
+<img src="./kvx.svg" width="64"/>
+
 A Redis-like key-value store written from scratch in Go. I added the `x` to the name just to add some suspense, only the `kv` part makes sense. This is not meant for production use - it's a hands-on project where I'm building my own implementation of Redis internals to understand how things work under the hood. That said, I do plan to use it in my own personal projects as I keep adding features.
 
 ## What it does
