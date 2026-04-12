@@ -36,7 +36,19 @@ func Put(key string, value *Obj) {
 }
 
 func Get(key string) *Obj {
-	return store[key]
+	v := store[key]
+
+	// if the key is expired - delete it and return nil
+	// this is the lazy way of deleting expired keys
+	if v != nil {
+		// we need the -1 check to avoid deleting keys that do not have an expiration
+		if v.ExpiresAt != -1 && v.ExpiresAt <= time.Now().UnixMilli() {
+			delete(store, key)
+			return nil
+		}
+	}
+
+	return v
 }
 
 func Del(key string) bool {
