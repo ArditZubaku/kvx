@@ -35,9 +35,9 @@ func evalPING(args []string, conn io.ReadWriter) error {
 	}
 
 	if len(args) == 0 {
-		b = Encode("PONG", true)
+		b = EncodeSimple("PONG")
 	} else {
-		b = Encode(args[0], false)
+		b = Encode(args[0])
 	}
 
 	// TODO: Rethink whether this should write the data or just return it
@@ -108,7 +108,7 @@ func evalGET(args []string, conn io.ReadWriter) error {
 	}
 
 	// return the RESP encoded value
-	_, err := conn.Write(Encode(obj.Value, false))
+	_, err := conn.Write(Encode(obj.Value))
 	return err
 }
 
@@ -145,6 +145,6 @@ func evalTTL(args []string, conn io.ReadWriter) error {
 		return err
 	}
 
-	_, err := conn.Write(Encode(expirationMs/1_000, false))
+	_, err := conn.Write(Encode(expirationMs / 1_000))
 	return err
 }

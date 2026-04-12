@@ -61,18 +61,19 @@ func DecodeArrayString(data []byte) ([]string, error) {
 	return tokens, nil
 }
 
-func Encode(value any, isSimple bool) []byte {
+func Encode(value any) []byte {
 	switch v := value.(type) {
 	case string:
-		if isSimple {
-			return fmt.Appendf(nil, "+%s\r\n", v)
-		}
 		return fmt.Appendf(nil, "$%d\r\n%s\r\n", len(v), v)
 	case int64:
 		return fmt.Appendf(nil, ":%d\r\n", v)
 	default:
 		return nilResponse
 	}
+}
+
+func EncodeSimple(value string) []byte {
+	return fmt.Appendf(nil, "+%s\r\n", value)
 }
 
 // readSimpleString - https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-strings
