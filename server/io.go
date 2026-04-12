@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"io"
+	"log"
 	"strings"
 
 	"github.com/ArditZubaku/kvx/core"
@@ -29,6 +30,10 @@ func readCommand(conn io.ReadWriter) (*core.RedisCmd, error) {
 func respond(cmd *core.RedisCmd, conn io.ReadWriter) {
 	if err := core.EvalAndRespond(cmd, conn); err != nil {
 		// respond with error
-		fmt.Fprintf(conn, "-%s\r\n", err)
+		_, err := fmt.Fprintf(conn, "-%s\r\n", err)
+		if err != nil {
+			log.Printf("failed to write response: %v\n", err)
+			return
+		}
 	}
 }

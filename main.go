@@ -11,7 +11,7 @@ import (
 func main() {
 	setupFlags()
 	log.Println("Starting the kvx server...")
-	server.RunAsyncTCPServer()
+	log.Fatal(server.RunAsyncTCPServer())
 }
 
 func setupFlags() {

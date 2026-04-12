@@ -10,7 +10,7 @@ import (
 	"github.com/ArditZubaku/kvx/core"
 )
 
-var connectedClients int = 0
+var connectedClients = 0
 
 func RunAsyncTCPServer() error {
 	log.Println("Starting an asynchronous TCP server on", config.Host, config.Port)
@@ -27,7 +27,12 @@ func RunAsyncTCPServer() error {
 	if err != nil {
 		return err
 	}
-	defer syscall.Close(serverFd)
+	defer func(fd int) {
+		err := syscall.Close(fd)
+		if err != nil {
+			log.Fatalf("failed to close server FD %d: %v", fd, err)
+		}
+	}(serverFd)
 
 	// set the socket to operate in a non-blocking mode
 	// TODO: This might not be needed since we already set it via the flag above
@@ -69,7 +74,12 @@ func RunAsyncTCPServer() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer syscall.Close(epollFd)
+	defer func(fd int) {
+		err := syscall.Close(fd)
+		if err != nil {
+			log.Fatalf("failed to close epoll FD %d: %v", fd, err)
+		}
+	}(epollFd)
 
 	// notify me when this file descriptor becomes ready for these events (incoming connections)
 	serverSocketEvent := syscall.EpollEvent{
@@ -113,7 +123,10 @@ func RunAsyncTCPServer() error {
 				// set the client socket non-blocking
 				if err := syscall.SetNonblock(connFd, true); err != nil {
 					log.Printf("SetNonblock error: %+v\n", err)
-					syscall.Close(connFd)
+					err := syscall.Close(connFd)
+					if err != nil {
+						log.Printf("failed to close conn FD %d: %v\n", connFd, err)
+					}
 					continue
 				}
 
@@ -136,7 +149,10 @@ func RunAsyncTCPServer() error {
 				fd := core.FD(events[i].Fd)
 				cmd, err := readCommand(fd)
 				if err != nil {
-					syscall.Close(int(fd))
+					err := syscall.Close(int(fd))
+					if err != nil {
+						log.Printf("failed to close conn FD %d: %v\n", fd, err)
+					}
 					connectedClients--
 					continue
 				}

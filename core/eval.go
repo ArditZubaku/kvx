@@ -81,9 +81,8 @@ func evalSET(args []string, conn io.ReadWriter) error {
 	// put the key and value in a hash table
 	Put(key, NewObj(value, expirationMs))
 
-	conn.Write(okResponse)
-
-	return nil
+	_, err := conn.Write(okResponse)
+	return err
 }
 
 // evalGET - GET key
@@ -98,20 +97,19 @@ func evalGET(args []string, conn io.ReadWriter) error {
 
 	// if key does not exist, return RESP encoded nil
 	if obj == nil {
-		conn.Write(nilResponse)
-		return nil
+		_, err := conn.Write(nilResponse)
+		return err
 	}
 
 	// if key already expired then return nil
 	if obj.ExpiresAt != -1 && obj.ExpiresAt <= time.Now().UnixMilli() {
-		conn.Write(nilResponse)
-		return nil
+		_, err := conn.Write(nilResponse)
+		return err
 	}
 
 	// return the RESP encoded value
-	conn.Write(Encode(obj.Value, false))
-
-	return nil
+	_, err := conn.Write(Encode(obj.Value, false))
+	return err
 }
 
 // evalTTL - TTL key
@@ -127,14 +125,14 @@ func evalTTL(args []string, conn io.ReadWriter) error {
 	// if key does not exist, return RESP encoded -2
 	// denoting that the key does not exist (that's how Redis responds)
 	if obj == nil {
-		conn.Write(notExistsResponse)
-		return nil
+		_, err := conn.Write(notExistsResponse)
+		return err
 	}
 
 	// if object exists, but no expiration is set on it then send `-1` (meaning never expires)
 	if obj.ExpiresAt == -1 {
-		conn.Write(neverExpiresResponse)
-		return nil
+		_, err := conn.Write(neverExpiresResponse)
+		return err
 	}
 
 	// compute the time remaining for the key to expire
@@ -143,11 +141,10 @@ func evalTTL(args []string, conn io.ReadWriter) error {
 
 	// if key expired -> therefore key does not exist, return -2
 	if expirationMs < 0 {
-		conn.Write(notExistsResponse)
-		return nil
+		_, err := conn.Write(notExistsResponse)
+		return err
 	}
 
-	conn.Write(Encode(expirationMs/1_000, false))
-
-	return nil
+	_, err := conn.Write(Encode(expirationMs/1_000, false))
+	return err
 }

@@ -1,4 +1,4 @@
-// core contains everything related to the RESP protocol - Redis serialization protocol
+// Package core contains everything related to the RESP protocol - Redis serialization protocol
 package core
 
 import (
@@ -60,19 +60,19 @@ func DecodeArrayString(data []byte) ([]string, error) {
 
 	return tokens, nil
 }
-func Encode(value any, isSimple bool) []byte {
-	var b []byte
 
+func Encode(value any, isSimple bool) []byte {
 	switch v := value.(type) {
 	case string:
 		if isSimple {
-			return fmt.Appendf(b, "+%s\r\n", v)
+			return []byte(fmt.Sprintf("+%s\r\n", v))
 		}
-
-		return fmt.Appendf(b, "$%d\r\n%s\r\n", len(v), v)
+		return []byte(fmt.Sprintf("$%d\r\n%s\r\n", len(v), v))
+	case int64:
+		return []byte(fmt.Sprintf(":%d\r\n", v))
+	default:
+		return nilResponse
 	}
-
-	return b
 }
 
 // readSimpleString - https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-strings
@@ -94,14 +94,14 @@ func readSimpleString(data []byte) (string, int, error) {
 }
 
 // readError - https://redis.io/docs/latest/develop/reference/protocol-spec/#simple-errors
-// reads a RESP encodede error from data and
+// reads a RESP encoded error from data and
 // returns the error string, the cursor (up to where it read) and the error
 func readError(data []byte) (string, int, error) {
 	return readSimpleString(data)
 }
 
 // readInt64 - https://redis.io/docs/latest/develop/reference/protocol-spec/#integers
-// reads a RESP encodede error from data and
+// reads a RESP encoded error from data and
 // returns the integer value, the cursor (up to where it read) and the error
 func readInt64(data []byte) (int64, int, error) {
 	// Expect: :<string>\r\n
@@ -153,7 +153,7 @@ func readInt64(data []byte) (int64, int, error) {
 }
 
 // readBulkString - https://redis.io/docs/latest/develop/reference/protocol-spec/#bulk-strings
-// reads a RESP encodede error from data and
+// reads a RESP encoded error from data and
 // returns the string, the cursor (up to where it read) and the error
 func readBulkString(data []byte) (string, int, error) {
 	// Expect: $<intLength>\r\n<stringAsLongAsLength>\r\n
@@ -188,7 +188,7 @@ func readBulkString(data []byte) (string, int, error) {
 }
 
 // readArray - https://redis.io/docs/latest/develop/reference/protocol-spec/#arrays
-// reads a RESP encodede error from data and
+// reads a RESP encoded error from data and
 // returns the array, the cursor (up to where it read) and the error
 func readArray(data []byte) ([]any, int, error) {
 	// Expect: *<number_of_elements>\r\n<element_1><element_2>...<element_N>
@@ -198,13 +198,13 @@ func readArray(data []byte) ([]any, int, error) {
 
 	pos := 1
 
-	len, cursor, err := readLength(data[pos:])
+	length, cursor, err := readLength(data[pos:])
 	if err != nil {
 		return nil, 0, err
 	}
 	pos += cursor
 
-	elems := make([]any, len)
+	elems := make([]any, length)
 
 	for i := range elems {
 		e, cursor, err := DecodeOne(data[pos:])

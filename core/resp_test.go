@@ -1,6 +1,7 @@
 package core_test
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -66,7 +67,7 @@ func TestReadInt64_Overflow(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := core.Decode([]byte(tt.input))
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("readInt64() error = %v, wantErr %v, input %v", err, tt.wantErr, tt.input)
 			}
 		})
