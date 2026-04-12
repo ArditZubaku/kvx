@@ -10,6 +10,8 @@ var okResponse = []byte("+OK\r\n")
 var nilResponse = []byte("$-1\r\n")
 var notExistsResponse = []byte(":-2\r\n")
 var neverExpiresResponse = []byte(":-1\r\n")
+var zero = []byte(":0\r\n")
+var one = []byte(":1\r\n")
 
 func EvalAndRespond(cmd *RedisCmd, conn io.ReadWriter) error {
 	switch cmd.Cmd {
@@ -175,6 +177,32 @@ func evalDEL(args []string, conn io.ReadWriter) error {
 	return err
 }
 
+// evalEXPIRE - EXPIRE key seconds
+//
+// EXPIRE sets a time-to-live (in seconds) on a key, after which it will automatically be deleted.
 func evalEXPIRE(args []string, conn io.ReadWriter) error {
-	panic("unimplemented")
+	if len(args) <= 1 {
+		return ErrExpireInvalidArgs
+	}
+
+	key := args[0]
+	expirationSec, err := strconv.ParseInt(args[1], 10, 64)
+	if err != nil {
+		return ErrNotIntegerOutOfRange
+	}
+
+	obj := Get(key)
+
+	// return 0 if the timeout was not set, e.g. key doesn't exist or operation skipped due to the provided arguments
+	if obj == nil {
+		_, err := conn.Write(zero)
+		return err
+	}
+
+	// NOTE: If I ever switch to value semantics, I should use Set() here instead of modifying the obj
+	obj.ExpiresAt = time.Now().UnixMilli() + (expirationSec * 1_000)
+
+	// return 1 if the timeout was set
+	_, err = conn.Write(one)
+	return err
 }

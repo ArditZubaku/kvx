@@ -17,6 +17,7 @@ var (
 	ErrSetInvalidArgs       = errors.New("ERR wrong number of arguments for 'set' command")
 	ErrGetInvalidArgs       = errors.New("ERR wrong number of arguments for 'get' command")
 	ErrTTLInvalidArgs       = errors.New("ERR wrong number of arguments for 'ttl' command")
+	ErrExpireInvalidArgs    = errors.New("ERR wrong number of arguments for 'expire' command")
 	ErrSyntaxError          = errors.New("ERR syntax error")
 	ErrNotIntegerOutOfRange = errors.New("ERR value is not an integer or out of range")
 )
