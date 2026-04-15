@@ -1,6 +1,10 @@
 package core
 
-import "time"
+import (
+	"time"
+
+	"github.com/ArditZubaku/kvx/config"
+)
 
 // TODO: Benchmark and see if we need to introduce
 // an objPool at some point or even switch to value semantics
@@ -32,6 +36,9 @@ func NewObj(value any, expirationMs int64) *Obj {
 }
 
 func Put(key string, value *Obj) {
+	if len(store) >= config.KeysLimit {
+		evict()
+	}
 	store[key] = value
 }
 
