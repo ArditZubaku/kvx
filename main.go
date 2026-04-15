@@ -17,5 +17,6 @@ func main() {
 func setupFlags() {
 	flag.StringVar(&config.Host, "host", "0.0.0.0", "Host for the kvx server")
 	flag.IntVar(&config.Port, "port", 7379, "Port for the kvx server")
+	flag.IntVar(&config.KeysLimit, "keys-limit", 1_000_000, "The limit of up to how many keys the server can hold")
 	flag.Parse()
 }
