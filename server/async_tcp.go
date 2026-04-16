@@ -158,7 +158,7 @@ func RunAsyncTCPServer() error {
 				// if some client that is already connected to the server is ready for IO
 				// meaning a client wants to send data to the server
 				fd := core.FD(events[i].Fd)
-				cmd, err := readCommand(fd)
+				cmds, err := readCommands(fd)
 				if err != nil {
 					err := syscall.Close(int(fd))
 					if err != nil {
@@ -167,7 +167,7 @@ func RunAsyncTCPServer() error {
 					connectedClients--
 					continue
 				}
-				respond(cmd, fd)
+				respond(cmds, fd)
 			}
 		}
 

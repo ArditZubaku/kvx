@@ -7,6 +7,14 @@ build:
 ping:
 	@docker run -it --rm redis redis-cli -h host.docker.internal -p 7379 ping
 
+send-pipeline:
+	@docker run -it --rm \
+		--network host \
+		busybox sh -c "(printf '*1\r\n\$$4\r\nPING\r\n*3\r\n\$$3\r\nSET\r\n\$$1\r\nk\r\n\$$1\r\nv\r\n*2\r\n\$$3\r\nGET\r\n\$$1\r\nk\r\n';) | nc 127.0.0.1 7379"
+
+test:
+	@DOCKER_BUILDKIT=1 docker build --progress=plain --target test -t app-tests .
+
 logs:
 	@docker logs kvx
 
@@ -27,6 +35,10 @@ deploy:
 		--name kvx \
 		--network host \
 		kvx:latest
+
+kill:
+	@docker stop kvx
+	@docker rm -f kvx
 
 benchmark-single-connection:
 	@docker run -it --rm \

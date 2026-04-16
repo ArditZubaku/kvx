@@ -7,13 +7,29 @@ import (
 	"math"
 )
 
-func Decode(data []byte) (any, error) {
+func Decode(data []byte) ([]any, error) {
 	if len(data) == 0 {
 		return nil, ErrNoData
 	}
 
-	value, _, err := DecodeOne(data)
-	return value, err
+	var idx int
+
+	// TODO: Preallocate - anything would be better than 0
+	values := make([]any, 0)
+
+	for idx < len(data) {
+		val, cursor, err := DecodeOne(data[idx:])
+		if err != nil {
+			return values, err
+		}
+		if cursor <= 0 {
+			return values, ErrUnknownDataType
+		}
+		idx = idx + cursor
+		values = append(values, val)
+	}
+
+	return values, nil
 }
 
 func DecodeOne(data []byte) (any, int, error) {
@@ -34,31 +50,7 @@ func DecodeOne(data []byte) (any, int, error) {
 		return readArray(data)
 	}
 
-	return nil, 0, nil
-}
-
-func DecodeArrayString(data []byte) ([]string, error) {
-	value, err := Decode(data)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: Maybe I could make Decode be a generic function instead of this
-	arr, ok := value.([]any)
-	if !ok {
-		return nil, ErrInvalidType
-	}
-
-	tokens := make([]string, len(arr))
-	for i, v := range arr {
-		s, ok := v.(string)
-		if !ok {
-			return nil, ErrInvalidType
-		}
-		tokens[i] = s
-	}
-
-	return tokens, nil
+	return nil, 0, ErrUnknownDataType
 }
 
 func Encode(value any) []byte {
@@ -67,6 +59,8 @@ func Encode(value any) []byte {
 		return fmt.Appendf(nil, "$%d\r\n%s\r\n", len(v), v)
 	case int, int8, int16, int32, int64:
 		return fmt.Appendf(nil, ":%d\r\n", v)
+	case error:
+		return fmt.Appendf(nil, "-%s\r\n", v)
 	default:
 		return nilResponse
 	}

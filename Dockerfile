@@ -1,4 +1,4 @@
-# Stage 1: Install dependencies
+# Stage 0: Install dependencies
 FROM golang:1.26-bookworm AS deps
 
 WORKDIR /app
@@ -7,8 +7,16 @@ COPY go.mod ./
 
 RUN go mod download
 
+# Stage 1: Test stage
+FROM deps AS test
+
+COPY . .
+
+# Run tests with no cache
+RUN go test -v -count=1 ./...
+
 # Stage 2: Build the application
-FROM golang:1.26-bookworm AS builder
+FROM deps AS builder
 
 WORKDIR /app
 

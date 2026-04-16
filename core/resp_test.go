@@ -94,10 +94,10 @@ func TestArrayDecode(t *testing.T) {
 	}
 
 	for k, v := range cases {
-		res, _ := core.Decode([]byte(k))
-		arr, ok := res.([]any)
-		if !ok {
-			t.Fail()
+		arr, _ := core.Decode([]byte(k))
+		t.Log("arr", arr)
+		if len(arr) > 0{
+			arr = arr[0].([]any)
 		}
 
 		if len(arr) != len(v) {
@@ -116,7 +116,7 @@ func TestArrayDecode(t *testing.T) {
 func execCases[T comparable](t *testing.T, cases map[string]T) {
 	for k, v := range cases {
 		res, _ := core.Decode([]byte(k))
-		if res != v {
+		if res[0] != v {
 			t.Fail()
 		}
 	}

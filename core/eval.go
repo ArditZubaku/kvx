@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"io"
 	"strconv"
 	"time"
@@ -13,50 +14,53 @@ var neverExpiresResponse = []byte(":-1\r\n")
 var zero = []byte(":0\r\n")
 var one = []byte(":1\r\n")
 
-func EvalAndRespond(cmd *RedisCmd, conn io.ReadWriter) error {
-	switch cmd.Cmd {
-	case "PING":
-		return evalPING(cmd.Args, conn)
-	case "SET":
-		return evalSET(cmd.Args, conn)
-	case "GET":
-		return evalGET(cmd.Args, conn)
-	case "TTL":
-		return evalTTL(cmd.Args, conn)
-	case "DEL":
-		return evalDEL(cmd.Args, conn)
-	case "EXPIRE":
-		return evalEXPIRE(cmd.Args, conn)
-	default:
-		// for now
-		return evalPING(cmd.Args, conn)
+func EvalAndRespond(cmds []*RedisCmd, conn io.ReadWriter) error {
+	// TODO: Pick something better for the capacity
+	// NOTE: The slice should have a length of 0
+	response := make([]byte, 0, len(cmds)*2)
+	buf := bytes.NewBuffer(response)
+
+	for _, cmd := range cmds {
+		switch cmd.Cmd {
+		case "PING":
+			buf.Write(evalPING(cmd.Args))
+		case "SET":
+			buf.Write(evalSET(cmd.Args))
+		case "GET":
+			buf.Write(evalGET(cmd.Args))
+		case "TTL":
+			buf.Write(evalTTL(cmd.Args))
+		case "DEL":
+			buf.Write(evalDEL(cmd.Args))
+		case "EXPIRE":
+			buf.Write(evalEXPIRE(cmd.Args))
+		default:
+			buf.Write(evalPING(cmd.Args))
+		}
 	}
+
+	_, err := conn.Write(buf.Bytes())
+	return err
 }
 
-func evalPING(args []string, conn io.ReadWriter) error {
-	var b []byte
-
-	if len(args) >= 2 {
-		return ErrPingInvalidArgs
+func evalPING(args []string) []byte {
+	if len(args) > 1 {
+		return Encode(ErrPingInvalidArgs)
 	}
 
-	if len(args) == 0 {
-		b = EncodeSimple("PONG")
-	} else {
-		b = Encode(args[0])
+	if len(args) == 1 {
+		return Encode(args[0])
 	}
 
-	// TODO: Rethink whether this should write the data or just return it
-	_, err := conn.Write(b)
-	return err
+	return EncodeSimple("PONG")
 }
 
 // evalSET - SET key value [NX | XX] [GET] [EX seconds | PX milliseconds | EXAT unix-sec | PXAT unix-ms] [KEEPTTL]
 //
 // SET assigns a value to a key, optionally with conditions and expiration.
-func evalSET(args []string, conn io.ReadWriter) error {
+func evalSET(args []string) []byte {
 	if len(args) <= 1 {
-		return ErrSetInvalidArgs
+		return Encode(ErrSetInvalidArgs)
 	}
 
 	var expirationMs int64 = -1 // default value - never expire
@@ -70,36 +74,35 @@ func evalSET(args []string, conn io.ReadWriter) error {
 		case "EX", "ex":
 			i++ // move one step, there should be the expiration value
 			if i == len(args) {
-				return ErrSyntaxError
+				return Encode(ErrSyntaxError)
 			}
 
 			// expirationSec, err := strconv.ParseInt(args[3], 10, 64)
 			expirationSec, err := strconv.ParseInt(args[i], 10, 64)
 			if err != nil {
-				return ErrNotIntegerOutOfRange
+				return Encode(ErrNotIntegerOutOfRange)
 			}
 
 			// we get the value in seconds but we should store it in ms
 			expirationMs = expirationSec * 1_000
 		default:
-			return ErrSyntaxError
+			return Encode(ErrSyntaxError)
 		}
 	}
 
 	// put the key and value in a hash table
 	Put(key, NewObj(value, expirationMs))
 
-	_, err := conn.Write(okResponse)
-	return err
+	return okResponse
 }
 
 // evalGET - GET key
 //
 // GET returns the value stored at a key (or nil if it doesn’t exist)
-func evalGET(args []string, conn io.ReadWriter) error {
+func evalGET(args []string) []byte {
 	// it has to be exactly 1 arg
 	if len(args) != 1 {
-		return ErrGetInvalidArgs
+		return Encode(ErrGetInvalidArgs)
 	}
 
 	key := args[0]
@@ -107,28 +110,25 @@ func evalGET(args []string, conn io.ReadWriter) error {
 
 	// if key does not exist, return RESP encoded nil
 	if obj == nil {
-		_, err := conn.Write(nilResponse)
-		return err
+		return nilResponse
 	}
 
 	// if key already expired then return nil
 	if obj.ExpiresAt != -1 && obj.ExpiresAt <= time.Now().UnixMilli() {
-		_, err := conn.Write(nilResponse)
-		return err
+		return nilResponse
 	}
 
 	// return the RESP encoded value
-	_, err := conn.Write(Encode(obj.Value))
-	return err
+	return Encode(obj.Value)
 }
 
 // evalTTL - TTL key
 //
 // TTL returns the remaining time-to-live of a key in seconds (-1 if no expiry, -2 if missing)
-func evalTTL(args []string, conn io.ReadWriter) error {
+func evalTTL(args []string) []byte {
 	// it has to be exactly 1 arg
 	if len(args) != 1 {
-		return ErrTTLInvalidArgs
+		return Encode(ErrTTLInvalidArgs)
 	}
 
 	key := args[0]
@@ -137,14 +137,12 @@ func evalTTL(args []string, conn io.ReadWriter) error {
 	// if key does not exist, return RESP encoded -2
 	// denoting that the key does not exist (that's how Redis responds)
 	if obj == nil {
-		_, err := conn.Write(notExistsResponse)
-		return err
+		return notExistsResponse
 	}
 
 	// if object exists, but no expiration is set on it then send `-1` (meaning never expires)
 	if obj.ExpiresAt == -1 {
-		_, err := conn.Write(neverExpiresResponse)
-		return err
+		return neverExpiresResponse
 	}
 
 	// compute the time remaining for the key to expire
@@ -153,18 +151,16 @@ func evalTTL(args []string, conn io.ReadWriter) error {
 
 	// if key expired -> therefore key does not exist, return -2
 	if expirationMs < 0 {
-		_, err := conn.Write(notExistsResponse)
-		return err
+		return notExistsResponse
 	}
 
-	_, err := conn.Write(Encode(expirationMs / 1_000))
-	return err
+	return Encode(expirationMs / 1_000)
 }
 
 // evalDEL - DEL key [key ...]
 //
 // DEL removes one or more keys from Redis and returns how many were successfully deleted.
-func evalDEL(args []string, conn io.ReadWriter) error {
+func evalDEL(args []string) []byte {
 	deleted := 0
 
 	for _, key := range args {
@@ -173,36 +169,33 @@ func evalDEL(args []string, conn io.ReadWriter) error {
 		}
 	}
 
-	_, err := conn.Write(Encode(deleted))
-	return err
+	return Encode(deleted)
 }
 
 // evalEXPIRE - EXPIRE key seconds
 //
 // EXPIRE sets a time-to-live (in seconds) on a key, after which it will automatically be deleted.
-func evalEXPIRE(args []string, conn io.ReadWriter) error {
+func evalEXPIRE(args []string) []byte {
 	if len(args) <= 1 {
-		return ErrExpireInvalidArgs
+		return Encode(ErrExpireInvalidArgs)
 	}
 
 	key := args[0]
 	expirationSec, err := strconv.ParseInt(args[1], 10, 64)
 	if err != nil {
-		return ErrNotIntegerOutOfRange
+		return Encode(ErrNotIntegerOutOfRange)
 	}
 
 	obj := Get(key)
 
 	// return 0 if the timeout was not set, e.g. key doesn't exist or operation skipped due to the provided arguments
 	if obj == nil {
-		_, err := conn.Write(zero)
-		return err
+		return zero
 	}
 
 	// NOTE: If I ever switch to value semantics, I should use Set() here instead of modifying the obj
 	obj.ExpiresAt = time.Now().UnixMilli() + (expirationSec * 1_000)
 
 	// return 1 if the timeout was set
-	_, err = conn.Write(one)
-	return err
+	return one
 }

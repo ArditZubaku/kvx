@@ -32,22 +32,21 @@ func RunSyncTCPServer() {
 
 		for {
 			// over the socket, continuously read the command and print it out
-			cmd, err := readCommand(conn)
-			if err != nil {
-				err := conn.Close()
-				if err != nil {
+			cmds, readErr := readCommands(conn)
+			if readErr != nil {
+				if err := conn.Close(); err != nil {
 					log.Printf("failed to close connection: %v\n", err)
-					return
 				}
 				connClients--
 				log.Println("Client disconnected", conn.RemoteAddr(), "concurrent clients running:", connClients)
-				if err == io.EOF {
+				if readErr == io.EOF {
 					break
 				}
-				log.Println("Error:", err)
+				log.Println("Error:", readErr)
+				break
 			}
 
-			respond(cmd, conn)
+			respond(cmds, conn)
 		}
 	}
 }

@@ -11,6 +11,7 @@ var (
 	ErrMissingCRLF         = errors.New("invalid simple string: missing CRLF")
 	ErrIntegerOverflow     = errors.New("integer overflow")
 	ErrInvalidType         = errors.New("invalid type")
+	ErrUnknownDataType     = errors.New("unknown RESP data type")
 
 	// This is the exact error message Redis returns
 	ErrPingInvalidArgs      = errors.New("ERR wrong number of arguments for 'ping' command")
