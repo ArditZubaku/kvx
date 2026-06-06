@@ -2,17 +2,21 @@ package core
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"log"
 	"strconv"
 	"time"
 )
 
-var okResponse = []byte("+OK\r\n")
-var nilResponse = []byte("$-1\r\n")
-var notExistsResponse = []byte(":-2\r\n")
-var neverExpiresResponse = []byte(":-1\r\n")
-var zero = []byte(":0\r\n")
-var one = []byte(":1\r\n")
+var (
+	okResponse           = []byte("+OK\r\n")
+	nilResponse          = []byte("$-1\r\n")
+	notExistsResponse    = []byte(":-2\r\n")
+	neverExpiresResponse = []byte(":-1\r\n")
+	zero                 = []byte(":0\r\n")
+	one                  = []byte(":1\r\n")
+)
 
 func EvalAndRespond(cmds []*RedisCmd, conn io.ReadWriter) error {
 	// TODO: Pick something better for the capacity
@@ -38,6 +42,12 @@ func EvalAndRespond(cmds []*RedisCmd, conn io.ReadWriter) error {
 			buf.Write(evalBGREWRITEAOF())
 		case "INCR":
 			buf.Write(evalINCR(cmd.Args))
+		case "INFO":
+			buf.Write(evalINFO())
+		case "CLIENT":
+			buf.Write(evalCLIENT(cmd.Args))
+		case "LATENCY":
+			buf.Write(evalLATENCY(cmd.Args))
 		default:
 			buf.Write(evalPING(cmd.Args))
 		}
@@ -248,4 +258,32 @@ func evalINCR(args []string) []byte {
 	obj.Value = strconv.FormatInt(i, 10)
 
 	return Encode(i)
+}
+
+// evalINFO - INFO [section [section ...]]
+//
+// The INFO command returns information and statistics about the server in a format
+// that is simple to parse by computers and easy to read by humans.
+func evalINFO() []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, 256))
+
+	buf.WriteString("# Keyspace\r\n")
+
+	for i := range KeySpaceStat {
+		// if _, err := fmt.Fprintf(buf, "db%d:keys=%d,expires=0,avg_ttl=0\r\n", i, len(store)); err != nil {
+		if _, err := fmt.Fprintf(buf, "db%d:keys=%d,expires=0,avg_ttl=0\r\n", i, KeySpaceStat[i]["keys"]); err != nil {
+			log.Printf("error writing stats: %+v\n", err)
+			continue
+		}
+	}
+
+	return Encode(buf.String())
+}
+
+func evalLATENCY(s []string) []byte {
+	panic("unimplemented")
+}
+
+func evalCLIENT(s []string) []byte {
+	panic("unimplemented")
 }

@@ -36,6 +36,13 @@ func Put(key string, value *Obj) {
 		evict()
 	}
 	store[key] = value
+
+	// NOTE: might remove it in the future and just use len(store) for keys
+	// Everything by default goes to db-0
+	if KeySpaceStat[0] == nil {
+		KeySpaceStat[0] = make(map[string]int)
+	}
+	KeySpaceStat[0]["keys"]++
 }
 
 func Get(key string) *Obj {
@@ -57,6 +64,7 @@ func Get(key string) *Obj {
 func Del(key string) bool {
 	if _, ok := store[key]; ok {
 		delete(store, key)
+		KeySpaceStat[0]["keys"]--
 		return true
 	}
 	return false
