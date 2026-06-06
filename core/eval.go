@@ -36,6 +36,8 @@ func EvalAndRespond(cmds []*RedisCmd, conn io.ReadWriter) error {
 			buf.Write(evalEXPIRE(cmd.Args))
 		case "BGREWRITEAOF":
 			buf.Write(evalBGREWRITEAOF())
+		case "INCR":
+			buf.Write(evalINCR(cmd.Args))
 		default:
 			buf.Write(evalPING(cmd.Args))
 		}
@@ -68,6 +70,7 @@ func evalSET(args []string) []byte {
 	var expirationMs int64 = -1 // default value - never expire
 
 	key, value := args[0], args[1]
+	objType, objEnc := deduceTypeEncoding(value)
 
 	// since key and value are mandatory, we start from the 3rd arg,
 	// everything from here is optional
@@ -93,7 +96,7 @@ func evalSET(args []string) []byte {
 	}
 
 	// put the key and value in a hash table
-	Put(key, NewObj(value, expirationMs))
+	Put(key, NewObj(value, expirationMs, objType, objEnc))
 
 	return okResponse
 }
@@ -207,4 +210,42 @@ func evalBGREWRITEAOF() []byte {
 	dumpAllAOF()
 
 	return okResponse
+}
+
+// evalINCR - INCR key
+//
+// Increments the number stored at key by one.
+// If the key does not exist, it is set to 0 before performing the operation.
+// An error is returned if the key contains a value of the wrong type
+// or contains a string that can not be represented as integer.
+func evalINCR(args []string) []byte {
+	if len(args) != 1 {
+		return Encode(ErrINCRInvalidArgs)
+	}
+
+	key := args[0]
+	obj := Get(key)
+
+	if obj == nil {
+		obj = NewObj("0", -1, OBJ_TYPE_STRING, OBJ_ENCODING_INT)
+		Put(key, obj)
+	}
+
+	if err := assertType(obj.TypeEncoding, OBJ_TYPE_STRING); err != nil {
+		return Encode(err)
+	}
+
+	if err := assertEncoding(obj.TypeEncoding, OBJ_ENCODING_INT); err != nil {
+		return Encode(err)
+	}
+
+	i, err := strconv.ParseInt(obj.Value.(string), 10, 64)
+	if err != nil {
+		return Encode(err)
+	}
+
+	i = i + 1
+	obj.Value = strconv.FormatInt(i, 10)
+
+	return Encode(i)
 }

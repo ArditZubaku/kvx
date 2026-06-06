@@ -21,4 +21,5 @@ var (
 	ErrExpireInvalidArgs    = errors.New("ERR wrong number of arguments for 'expire' command")
 	ErrSyntaxError          = errors.New("ERR syntax error")
 	ErrNotIntegerOutOfRange = errors.New("ERR value is not an integer or out of range")
+	ErrINCRInvalidArgs      = errors.New("ERR wrong number of arguments for 'incr' command")
 )

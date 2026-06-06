@@ -11,18 +11,13 @@ import (
 
 var store map[string]*Obj
 
-type Obj struct {
-	Value     any
-	ExpiresAt int64
-}
-
 func init() {
 	// we could include this in the main function,
 	// but I think this keeps it clearer
 	store = make(map[string]*Obj)
 }
 
-func NewObj(value any, expirationMs int64) *Obj {
+func NewObj(value any, expirationMs int64, objType uint8, objEnc uint8) *Obj {
 	var expiresAt int64 = -1
 
 	if expirationMs > 0 {
@@ -30,8 +25,9 @@ func NewObj(value any, expirationMs int64) *Obj {
 	}
 
 	return &Obj{
-		Value:     value,
-		ExpiresAt: expiresAt,
+		Value:        value,
+		ExpiresAt:    expiresAt,
+		TypeEncoding: objType | objEnc, // 4 first bits objType, last 4 objEnc
 	}
 }
 
