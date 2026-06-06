@@ -34,6 +34,8 @@ func EvalAndRespond(cmds []*RedisCmd, conn io.ReadWriter) error {
 			buf.Write(evalDEL(cmd.Args))
 		case "EXPIRE":
 			buf.Write(evalEXPIRE(cmd.Args))
+		case "BGREWRITEAOF":
+			buf.Write(evalBGREWRITEAOF())
 		default:
 			buf.Write(evalPING(cmd.Args))
 		}
@@ -198,4 +200,11 @@ func evalEXPIRE(args []string) []byte {
 
 	// return 1 if the timeout was set
 	return one
+}
+
+// TODO: Make it async by forking a new process OR probably just a separate goroutine
+func evalBGREWRITEAOF() []byte {
+	dumpAllAOF()
+
+	return okResponse
 }

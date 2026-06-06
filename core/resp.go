@@ -57,6 +57,25 @@ func Encode(value any) []byte {
 	switch v := value.(type) {
 	case string:
 		return fmt.Appendf(nil, "$%d\r\n%s\r\n", len(v), v)
+	case []string:
+		// *<len>\r\n is ~5 bytes.
+		// Each string has a $<len>\r\n prefix (~5 bytes) and \r\n suffix (2 bytes).
+		totalLen := 5 + (len(v) * 7)
+		for _, s := range v {
+			totalLen += len(s)
+		}
+
+		buf := bytes.NewBuffer(make([]byte, 0, totalLen))
+
+		// Write the array header (*<count>\r\n) directly to the buffer
+		fmt.Fprintf(buf, "*%d\r\n", len(v))
+
+		// Encode each string as a Redis bulk string directly into the buffer
+		for _, s := range v {
+			fmt.Fprintf(buf, "$%d\r\n%s\r\n", len(s), s)
+		}
+
+		return buf.Bytes()
 	case int, int8, int16, int32, int64:
 		return fmt.Appendf(nil, ":%d\r\n", v)
 	case error:

@@ -1,5 +1,5 @@
 # Stage 0: Install dependencies
-FROM golang:1.26-bookworm AS deps
+FROM golang:alpine3.23 AS deps
 
 WORKDIR /app
 
@@ -39,8 +39,9 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 # Copy the built application
 COPY --from=builder /app/main .
 
-# Change ownership of the application binary
-RUN chown appuser:appuser /app/main
+# Change ownership of the /app directory itself, not just the binary
+# We need it in order to be able to write the AOF file
+RUN chown -R appuser:appuser /app
 
 # Switch to the non-root user
 USER appuser

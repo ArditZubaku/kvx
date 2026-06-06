@@ -15,6 +15,14 @@ send-pipeline:
 test:
 	@DOCKER_BUILDKIT=1 docker build --progress=plain --target test -t app-tests .
 
+aof:
+	@docker run -i --rm \
+		--network host \
+		redis redis-cli -h 127.0.0.1 -p 7379 <<< "SET k1 v1"$$'\n'"SET k2 v2"$$'\n'"SET k3 v4"$$'\n'"SET k3 v3"$$'\n'"BGREWRITEAOF"
+
+aof-verify:
+	@docker cp kvx:/app/kvx-master.aof - | docker run -i --entrypoint sh --rm redis -c "tar -xC /tmp && redis-check-aof /tmp/kvx-master.aof"
+
 logs:
 	@docker logs kvx
 
@@ -35,6 +43,9 @@ deploy:
 		--name kvx \
 		--network host \
 		kvx:latest
+
+exec:
+	@docker exec -it kvx sh
 
 kill:
 	@docker stop kvx
