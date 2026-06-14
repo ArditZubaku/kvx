@@ -92,7 +92,6 @@ func evalSET(args []string) []byte {
 				return Encode(ErrSyntaxError)
 			}
 
-			// expirationSec, err := strconv.ParseInt(args[3], 10, 64)
 			expirationSec, err := strconv.ParseInt(args[i], 10, 64)
 			if err != nil {
 				return Encode(ErrNotIntegerOutOfRange)
@@ -231,15 +230,15 @@ func evalINCR(args []string) []byte {
 	obj := Get(key)
 
 	if obj == nil {
-		obj = NewObj("0", -1, OBJ_TYPE_STRING, OBJ_ENCODING_INT)
+		obj = NewObj("0", -1, ObjTypeString, ObjEncodingInt)
 		Put(key, obj)
 	}
 
-	if err := assertType(obj.TypeEncoding, OBJ_TYPE_STRING); err != nil {
+	if err := assertType(obj.TypeEncoding, ObjTypeString); err != nil {
 		return Encode(err)
 	}
 
-	if err := assertEncoding(obj.TypeEncoding, OBJ_ENCODING_INT); err != nil {
+	if err := assertEncoding(obj.TypeEncoding, ObjEncodingInt); err != nil {
 		return Encode(err)
 	}
 
@@ -248,7 +247,7 @@ func evalINCR(args []string) []byte {
 		return Encode(err)
 	}
 
-	i = i + 1
+	i++
 	obj.Value = strconv.FormatInt(i, 10)
 
 	return Encode(i)

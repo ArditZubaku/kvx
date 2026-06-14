@@ -8,5 +8,20 @@
         },
       },
     },
+    "golangci-lint": {
+      "initialization_options": {
+        "command": [
+          "env",
+          "GOOS=linux",
+          "GOARCH=amd64",
+          "golangci-lint",
+          "run",
+          "--output.json.path",
+          "stdout",
+          "--show-stats=false",
+          "--output.text.path=",
+        ],
+      },
+    },
   },
 }

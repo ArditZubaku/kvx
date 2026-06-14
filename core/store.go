@@ -7,8 +7,10 @@ import (
 // TODO: Benchmark and see if we need to introduce
 // an objPool at some point or even switch to value semantics
 
-var store map[string]*Obj
-var expires map[*Obj]uint64 // ptr->expirationTime
+var (
+	store   map[string]*Obj
+	expires map[*Obj]uint64 // ptr->expirationTime
+)
 
 func init() {
 	// we could include this in the main function,
@@ -57,9 +59,9 @@ func Get(key string) *Obj {
 			Del(key)
 			return nil
 		}
-	}
 
-	v.LastAccessedAt = getCurrentClock()
+		v.LastAccessedAt = getCurrentClock()
+	}
 
 	return v
 }

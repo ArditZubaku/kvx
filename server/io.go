@@ -62,8 +62,8 @@ func toArrayString(arr []any) ([]string, error) {
 func respond(cmd []*core.RedisCmd, conn io.ReadWriter) {
 	if err := core.EvalAndRespond(cmd, conn); err != nil {
 		// respond with error
-		_, err := fmt.Fprintf(conn, "-%s\r\n", err)
-		if err != nil {
+		_, fErr := fmt.Fprintf(conn, "-%s\r\n", err)
+		if fErr != nil {
 			log.Printf("failed to write response: %v\n", err)
 			return
 		}

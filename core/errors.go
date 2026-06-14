@@ -14,6 +14,7 @@ var (
 	ErrUnknownDataType     = errors.New("unknown RESP data type")
 
 	// This is the exact error message Redis returns
+
 	ErrPingInvalidArgs      = errors.New("ERR wrong number of arguments for 'ping' command")
 	ErrSetInvalidArgs       = errors.New("ERR wrong number of arguments for 'set' command")
 	ErrGetInvalidArgs       = errors.New("ERR wrong number of arguments for 'get' command")

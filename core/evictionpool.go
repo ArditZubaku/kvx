@@ -11,7 +11,7 @@ type PoolItem struct {
 	lastAccessedAt uint32
 }
 
-// TODO: When lastAccessedAt of	an object changes
+// EvictionPool TODO: When lastAccessedAt of an object changes
 // update the poolItem corresponding to that object
 type EvictionPool struct {
 	pool []*PoolItem
@@ -62,14 +62,17 @@ func (ep *EvictionPool) Pop() *PoolItem {
 
 type ByIdleTime []*PoolItem
 
+//nolint:staticcheck
 func (this ByIdleTime) Len() int {
 	return len(this)
 }
 
+//nolint:staticcheck
 func (this ByIdleTime) Swap(a, b int) {
 	this[a], this[b] = this[b], this[a]
 }
 
+//nolint:staticcheck
 func (this ByIdleTime) Less(a, b int) bool {
 	return getIdleTime(this[a].lastAccessedAt) > getIdleTime(this[b].lastAccessedAt)
 }

@@ -9,4 +9,4 @@ var KeysLimit int
 var EvictionRatio float64
 var EvictionStrategy string
 
-var AOF_FILE string
+var AofFile string

@@ -4,6 +4,7 @@ package core
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"math"
 )
 
@@ -68,11 +69,19 @@ func Encode(value any) []byte {
 		buf := bytes.NewBuffer(make([]byte, 0, totalLen))
 
 		// Write the array header (*<count>\r\n) directly to the buffer
-		fmt.Fprintf(buf, "*%d\r\n", len(v))
+		_, err := fmt.Fprintf(buf, "*%d\r\n", len(v))
+		if err != nil {
+			log.Printf("write error: %v", err)
+			return nil
+		}
 
 		// Encode each string as a Redis bulk string directly into the buffer
 		for _, s := range v {
-			fmt.Fprintf(buf, "$%d\r\n%s\r\n", len(s), s)
+			_, err := fmt.Fprintf(buf, "$%d\r\n%s\r\n", len(s), s)
+			if err != nil {
+				log.Printf("failed to encode value %v: %v", s, err)
+				return nil
+			}
 		}
 
 		return buf.Bytes()

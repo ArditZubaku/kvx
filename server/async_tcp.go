@@ -13,16 +13,18 @@ import (
 
 var connectedClients = 0
 
-// TODO: Redis does it 10x a second, maybe make this configurable
-var cronFrequency = 1 * time.Second
-var lastCronExecTime = time.Now()
+// TODO: Redis does it 10x a second, maybe make this configurable.
+var (
+	cronFrequency    = 1 * time.Second
+	lastCronExecTime = time.Now()
+)
 
 func RunAsyncTCPServer() error {
 	log.Println("Starting an asynchronous TCP server on", config.Host, config.Port)
 
 	maxClients := 20_000
 
-	// TODO: Try to implement the kqueue or IOCP ones as well!!!
+	// TODO: Try to implement the kqueue or IOCP ones as well.
 	// create EPOLL Event Objects to hold events
 	events := make([]syscall.EpollEvent, maxClients)
 
@@ -33,8 +35,8 @@ func RunAsyncTCPServer() error {
 		return err
 	}
 	defer func(fd int) {
-		err := syscall.Close(fd)
-		if err != nil {
+		closeErr := syscall.Close(fd)
+		if closeErr != nil {
 			log.Fatalf("failed to close server FD %d: %v", fd, err)
 		}
 	}(serverFd)
@@ -42,8 +44,8 @@ func RunAsyncTCPServer() error {
 	// set the socket to operate in a non-blocking mode
 	// TODO: This might not be needed since we already set it via the flag above
 	// but let's be safe and set it again just in case, if it's already set it should be a no-op
-	if err = syscall.SetNonblock(serverFd, true); err != nil {
-		return err
+	if nbErr := syscall.SetNonblock(serverFd, true); nbErr != nil {
+		return nbErr
 	}
 
 	// bind the IP and the port
@@ -55,19 +57,19 @@ func RunAsyncTCPServer() error {
 	var addr [4]byte
 	copy(addr[:], ipv4)
 
-	if err = syscall.Bind(
+	if bindErr := syscall.Bind(
 		serverFd,
 		&syscall.SockaddrInet4{
 			Port: config.Port,
 			Addr: addr,
 		},
-	); err != nil {
-		return err
+	); bindErr != nil {
+		return bindErr
 	}
 
 	// start listening
-	if err = syscall.Listen(serverFd, maxClients); err != nil {
-		return err
+	if lErr := syscall.Listen(serverFd, maxClients); lErr != nil {
+		return lErr
 	}
 
 	//----------------------------------------------------------------
@@ -77,11 +79,11 @@ func RunAsyncTCPServer() error {
 	// syscall.EPOLL_CLOEXEC - automatically closes FD on execve()
 	epollFd, err := syscall.EpollCreate1(syscall.EPOLL_CLOEXEC) // this is the modern API in comparison to EpollCreate
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("syscall error - epollCreate1, %+v", err)
 	}
 	defer func(fd int) {
-		err := syscall.Close(fd)
-		if err != nil {
+		closeErr := syscall.Close(fd)
+		if closeErr != nil {
 			log.Fatalf("failed to close epoll FD %d: %v", fd, err)
 		}
 	}(epollFd)
@@ -93,7 +95,7 @@ func RunAsyncTCPServer() error {
 	}
 
 	// listen to read events on the server itself - registering what we want to be notified uppon
-	if err = syscall.EpollCtl(epollFd, syscall.EPOLL_CTL_ADD, serverFd, &serverSocketEvent); err != nil {
+	if err := syscall.EpollCtl(epollFd, syscall.EPOLL_CTL_ADD, serverFd, &serverSocketEvent); err != nil {
 		return err
 	}
 
@@ -101,6 +103,7 @@ func RunAsyncTCPServer() error {
 		// TODO: Think about the case when epoll is blocked and the cron needs to run?
 		if time.Now().After(lastCronExecTime.Add(cronFrequency)) {
 			core.DeleteExpiredKeys()
+
 			lastCronExecTime = time.Now()
 		}
 
@@ -110,6 +113,7 @@ func RunAsyncTCPServer() error {
 		newEvents, err := syscall.EpollWait(epollFd, events, -1)
 		if err != nil {
 			log.Printf("EpollWait error: %+v\n", err)
+
 			continue
 		}
 
@@ -122,6 +126,7 @@ func RunAsyncTCPServer() error {
 				connFd, sockAddr, err := syscall.Accept(serverFd)
 				if err != nil {
 					log.Printf("Accept error: %+v\n", err)
+
 					continue
 				}
 
@@ -134,15 +139,17 @@ func RunAsyncTCPServer() error {
 				// set the client socket non-blocking
 				if err := syscall.SetNonblock(connFd, true); err != nil {
 					log.Printf("SetNonblock error: %+v\n", err)
-					err := syscall.Close(connFd)
-					if err != nil {
-						log.Printf("failed to close conn FD %d: %v\n", connFd, err)
+
+					if closeErr := syscall.Close(connFd); closeErr != nil {
+						log.Printf("failed to close conn FD %d: %v\n", connFd, closeErr)
 					}
+
 					continue
 				}
 
 				// increase the number of concurrent clients count
 				connectedClients++
+				log.Println("Current connected clients - ", connectedClients)
 
 				// add this new TCP connection to be monitored
 				clientSocketEvent := syscall.EpollEvent{
@@ -152,24 +159,27 @@ func RunAsyncTCPServer() error {
 
 				// register the client socket event to be notified uppon as well
 				if err := syscall.EpollCtl(epollFd, syscall.EPOLL_CTL_ADD, connFd, &clientSocketEvent); err != nil {
-					log.Fatal(err)
+					log.Printf("syscall error - epollCtl, %+v", err)
 				}
 			} else {
 				// if some client that is already connected to the server is ready for IO
 				// meaning a client wants to send data to the server
 				fd := core.FD(events[i].Fd)
+
 				cmds, err := readCommands(fd)
 				if err != nil {
-					err := syscall.Close(int(fd))
-					if err != nil {
-						log.Printf("failed to close conn FD %d: %v\n", fd, err)
+					if closeErr := syscall.Close(int(fd)); closeErr != nil {
+						log.Printf("failed to close conn FD %d: %v\n", fd, closeErr)
 					}
+
 					connectedClients--
+					log.Println("Current connected clients - ", connectedClients)
+
 					continue
 				}
+
 				respond(cmds, fd)
 			}
 		}
-
 	}
 }

@@ -4,16 +4,16 @@ import "strconv"
 
 // similar to `tryObjectEncoding` func in Redis
 func deduceTypeEncoding(v string) (uint8, uint8) {
-	objType := OBJ_TYPE_STRING
+	objType := ObjTypeString
 
 	if _, err := strconv.ParseInt(v, 10, 64); err != nil {
-		return objType, OBJ_ENCODING_INT
+		return objType, ObjEncodingInt
 	}
 
 	// up to 44 bytes (not chars)
 	if len(v) <= 44 {
-		return objType, OBJ_ENCODING_EMBSTR
+		return objType, ObjEncodingEmbstr
 	}
 
-	return objType, OBJ_ENCODING_RAW
+	return objType, ObjEncodingRaw
 }

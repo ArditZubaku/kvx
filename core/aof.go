@@ -13,13 +13,20 @@ const FilePermUserReadWrite os.FileMode = 0o644
 
 func dumpAllAOF() {
 	// Open for writing, create if missing, append data, with standard 0644 permissions
-	file, err := os.OpenFile(config.AOF_FILE, os.O_CREATE|os.O_WRONLY|os.O_APPEND, FilePermUserReadWrite)
+	file, err := os.OpenFile(config.AofFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, FilePermUserReadWrite)
 	if err != nil {
 		log.Printf("error: %+v", err)
+
 		return
 	}
 
-	log.Println("rewriting AOF file at:", config.AOF_FILE)
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("error closing AOF file: %+v", err)
+		}
+	}()
+
+	log.Println("rewriting AOF file at:", config.AofFile)
 
 	for key, obj := range store {
 		dumpKey(file, key, obj)
@@ -29,9 +36,15 @@ func dumpAllAOF() {
 }
 
 // TODO: support non-kv data structures
-// TODO: support sync write
+// TODO: support sync write.
 func dumpKey(file *os.File, key string, obj *Obj) {
 	cmd := fmt.Sprintf("SET %s %s", key, obj.Value)
 	tokens := strings.Split(cmd, " ")
-	file.Write(Encode(tokens))
+
+	_, err := file.Write(Encode(tokens))
+	if err != nil {
+		log.Printf("error writing to file: %s\n err: %+v", file.Name(), err)
+
+		return
+	}
 }
