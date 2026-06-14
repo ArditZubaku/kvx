@@ -96,7 +96,7 @@ func TestArrayDecode(t *testing.T) {
 	for k, v := range cases {
 		arr, _ := core.Decode([]byte(k))
 		t.Log("arr", arr)
-		if len(arr) > 0{
+		if len(arr) > 0 {
 			arr = arr[0].([]any)
 		}
 

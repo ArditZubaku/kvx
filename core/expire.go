@@ -29,13 +29,10 @@ func expireSample() float32 {
 
 	// in Go iteration over map is randomized - https://go.dev/blog/maps#iteration-order
 	for key, obj := range store {
-		if obj.ExpiresAt != -1 {
-			limit--
-			// if the key is expired - delete it
-			if obj.ExpiresAt <= time.Now().UnixMilli() {
-				delete(store, key)
-				expiredCount++
-			}
+		limit--
+		if hasExpired(obj) {
+			Del(key)
+			expiredCount++
 		}
 
 		if limit == 0 {
@@ -44,4 +41,23 @@ func expireSample() float32 {
 	}
 
 	return float32(expiredCount) / float32(20.0)
+}
+
+func setExpiry(obj *Obj, expDurationMs int64) {
+	expires[obj] = uint64(time.Now().UnixMilli()) + uint64(expDurationMs)
+}
+
+func getExpiry(obj *Obj) (uint64, bool) {
+	exp, ok := expires[obj]
+	return exp, ok
+}
+
+func hasExpired(obj *Obj) bool {
+	exp, ok := expires[obj]
+
+	if !ok {
+		return false
+	}
+
+	return exp <= uint64(time.Now().UnixMilli())
 }

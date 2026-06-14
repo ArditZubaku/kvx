@@ -111,11 +111,10 @@ func evalSET(args []string) []byte {
 	return okResponse
 }
 
-// evalGET - GET key
+// evalGET - GET key (it has to be exactly 1 arg)
 //
 // GET returns the value stored at a key (or nil if it doesn’t exist)
 func evalGET(args []string) []byte {
-	// it has to be exactly 1 arg
 	if len(args) != 1 {
 		return Encode(ErrGetInvalidArgs)
 	}
@@ -123,17 +122,14 @@ func evalGET(args []string) []byte {
 	key := args[0]
 	obj := Get(key)
 
-	// if key does not exist, return RESP encoded nil
 	if obj == nil {
 		return nilResponse
 	}
 
-	// if key already expired then return nil
-	if obj.ExpiresAt != -1 && obj.ExpiresAt <= time.Now().UnixMilli() {
+	if hasExpired(obj) {
 		return nilResponse
 	}
 
-	// return the RESP encoded value
 	return Encode(obj.Value)
 }
 
@@ -156,20 +152,17 @@ func evalTTL(args []string) []byte {
 	}
 
 	// if object exists, but no expiration is set on it then send `-1` (meaning never expires)
-	if obj.ExpiresAt == -1 {
+	exp, isExpirySet := getExpiry(obj)
+	if !isExpirySet {
 		return neverExpiresResponse
 	}
 
-	// compute the time remaining for the key to expire
-	// return the RESP encoded value of it
-	expirationMs := obj.ExpiresAt - time.Now().UnixMilli()
-
-	// if key expired -> therefore key does not exist, return -2
-	if expirationMs < 0 {
+	if hasExpired(obj) {
 		return notExistsResponse
 	}
 
-	return Encode(expirationMs / 1_000)
+	remainingExpirationMs := exp - uint64(time.Now().UnixMilli())
+	return Encode(remainingExpirationMs / 1_000)
 }
 
 // evalDEL - DEL key [key ...]
@@ -203,13 +196,14 @@ func evalEXPIRE(args []string) []byte {
 
 	obj := Get(key)
 
-	// return 0 if the timeout was not set, e.g. key doesn't exist or operation skipped due to the provided arguments
+	// return 0 if the timeout was not set,
+	// e.g. key doesn't exist or operation skipped due to the provided arguments
 	if obj == nil {
 		return zero
 	}
 
 	// NOTE: If I ever switch to value semantics, I should use Set() here instead of modifying the obj
-	obj.ExpiresAt = time.Now().UnixMilli() + (expirationSec * 1_000)
+	setExpiry(obj, expirationSec*1_000)
 
 	// return 1 if the timeout was set
 	return one
