@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -39,7 +40,7 @@ func RunSyncTCPServer() {
 				}
 				connClients--
 				log.Println("Client disconnected", conn.RemoteAddr(), "concurrent clients running:", connClients)
-				if readErr == io.EOF {
+				if errors.Is(readErr, io.EOF) {
 					break
 				}
 				log.Println("Error:", readErr)

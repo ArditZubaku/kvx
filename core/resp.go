@@ -26,7 +26,7 @@ func Decode(data []byte) ([]any, error) {
 		if cursor <= 0 {
 			return values, ErrUnknownDataType
 		}
-		idx = idx + cursor
+		idx += cursor
 		values = append(values, val)
 	}
 
