@@ -1,5 +1,5 @@
 # Stage 0: Install dependencies
-FROM golang:alpine3.23 AS deps
+FROM golang:1.26.4-alpine3.23 AS deps
 
 WORKDIR /app
 
