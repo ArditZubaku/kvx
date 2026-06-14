@@ -1,6 +1,9 @@
 run:
 	@go build -o kvx . && (trap 'go clean; exit' INT TERM EXIT; ./kvx) # runs clean no matter how the program exits
 
+lint:
+	@GOOS=linux GOARCH=amd64 golangci-lint run ./...
+
 build:
 	@docker build -t kvx:latest .
 
