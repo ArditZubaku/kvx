@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -19,7 +21,13 @@ var (
 	lastCronExecTime = time.Now()
 )
 
+var eStatus = EngineStatus.Waiting
+
 func RunAsyncTCPServer() error {
+	defer func() {
+		atomic.StoreInt32(&eStatus, EngineStatus.ShuttingDown)
+	}()
+
 	log.Println("Starting an asynchronous TCP server on", config.Host, config.Port)
 
 	maxClients := 20_000
@@ -49,7 +57,7 @@ func RunAsyncTCPServer() error {
 		}
 	}(epollFd)
 
-	for {
+	for atomic.LoadInt32(&eStatus) != EngineStatus.ShuttingDown {
 		// TODO: Think about the case when epoll is blocked and the cron needs to run?
 		if time.Now().After(lastCronExecTime.Add(cronFrequency)) {
 			core.DeleteExpiredKeys()
@@ -63,6 +71,20 @@ func RunAsyncTCPServer() error {
 			continue
 		}
 
+		// Here, we dont want to go back from ShuttingDown to Busy
+		// if the engine status is ShuttingDown then we have to exit
+		// hence, the only allowed transition is from Waiting to Busy
+		// if that doesnt happen then we can exit
+
+		// mark engine as Busy only when it is in the waiting state
+		if !atomic.CompareAndSwapInt32(&eStatus, EngineStatus.Waiting, EngineStatus.Busy) {
+			// if swap was unsuccessful then the existing status is not
+			switch eStatus {
+			case EngineStatus.ShuttingDown:
+				return nil
+			}
+		}
+
 		for i := range newEvents {
 			if int(events[i].Fd) == serverFd {
 				acceptClient(serverFd, epollFd)
@@ -70,7 +92,31 @@ func RunAsyncTCPServer() error {
 				handleClientIO(core.FD(events[i].Fd))
 			}
 		}
+
+		atomic.StoreInt32(&eStatus, EngineStatus.Waiting)
 	}
+
+	return nil
+}
+
+func WaitForSignal(sigChan chan os.Signal) {
+	<-sigChan
+
+	// if server is busy continue to wait
+	for atomic.LoadInt32(&eStatus) == EngineStatus.Busy {
+	}
+
+	// Critical to handle
+	// We do not want server to evergo back to Busy state
+	// when control flow is here ->
+
+	// immediately set the status to be ShuttingDown
+	// the only place where we can set the status to be ShuttingDown
+	atomic.StoreInt32(&eStatus, EngineStatus.ShuttingDown)
+
+	core.Shutdown()
+
+	os.Exit(0)
 }
 
 // setupTCPServer creates a non-blocking TCP socket bound to config.Host:config.Port and starts listening.

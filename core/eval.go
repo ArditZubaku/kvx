@@ -44,6 +44,8 @@ func EvalAndRespond(cmds []*RedisCmd, conn io.ReadWriter) error {
 			buf.Write(evalINCR(cmd.Args))
 		case "INFO":
 			buf.Write(evalINFO())
+		case "SLEEP":
+			buf.Write(evalSLEEP(cmd.Args))
 		case "CLIENT":
 			buf.Write(evalCLIENT(cmd.Args))
 		case "LATENCY":
@@ -264,13 +266,33 @@ func evalINFO() []byte {
 
 	for i := range KeySpaceStat {
 		// if _, err := fmt.Fprintf(buf, "db%d:keys=%d,expires=0,avg_ttl=0\r\n", i, len(store)); err != nil {
-		if _, err := fmt.Fprintf(buf, "db%d:keys=%d,expires=0,avg_ttl=0\r\n", i, KeySpaceStat[i]["keys"]); err != nil {
+		if _, err := fmt.Fprintf(
+			buf, "db%d:keys=%d,expires=0,avg_ttl=0\r\n",
+			i,
+			KeySpaceStat[i]["keys"],
+		); err != nil {
 			log.Printf("error writing stats: %+v\n", err)
 			continue
 		}
 	}
 
 	return Encode(buf.String())
+}
+
+// evalSLEEP is just for testing purpose, it doesn't exist as a command in Redis
+func evalSLEEP(args []string) []byte {
+	if len(args) != 1 {
+		return Encode(ErrSLEEPInvalidArgs)
+	}
+
+	durationSec, err := strconv.ParseInt(args[0], 10, 64)
+	if err != nil {
+		return Encode(ErrNotIntegerOutOfRange)
+	}
+
+	time.Sleep(time.Duration(durationSec) * time.Second)
+
+	return okResponse
 }
 
 func evalLATENCY(s []string) []byte {

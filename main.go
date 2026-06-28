@@ -3,6 +3,10 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
 	"github.com/ArditZubaku/kvx/config"
 	"github.com/ArditZubaku/kvx/server"
@@ -11,7 +15,21 @@ import (
 func main() {
 	setupFlags()
 	log.Println("Starting the kvx server...")
-	log.Fatal(server.RunAsyncTCPServer())
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
+
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		if err := server.RunAsyncTCPServer(); err != nil {
+			log.Printf("Error running the async TCP server -> %+v\n", err)
+		}
+	})
+	wg.Go(func() {
+		server.WaitForSignal(sigChan)
+	})
+
+	wg.Wait()
 }
 
 func setupFlags() {
