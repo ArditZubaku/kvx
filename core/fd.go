@@ -10,14 +10,14 @@ import (
 type Client struct {
 	io.ReadWriter
 	Fd       int
-	cmdQueue []*RedisCmd
+	cmdQueue []RedisCmd
 	isTxn    bool
 }
 
 func NewClient(fd int) *Client {
 	return &Client{
 		Fd:       fd,
-		cmdQueue: make([]*RedisCmd, 0), // TODO: Prealloc
+		cmdQueue: make([]RedisCmd, 0), // TODO: Prealloc
 	}
 }
 
@@ -44,17 +44,17 @@ func (c *Client) TxnExec() []byte {
 		buf.Write(executeCommand(cmd, c))
 	}
 
-	c.cmdQueue = make([]*RedisCmd, 0)
+	c.cmdQueue = make([]RedisCmd, 0)
 	c.isTxn = false
 
 	return buf.Bytes()
 }
 
-func (c *Client) TxnQueue(cmd *RedisCmd) {
+func (c *Client) TxnQueue(cmd RedisCmd) {
 	c.cmdQueue = append(c.cmdQueue, cmd)
 }
 
 func (c *Client) TxnDiscard() {
-	c.cmdQueue = make([]*RedisCmd, 0)
+	c.cmdQueue = make([]RedisCmd, 0)
 	c.isTxn = false
 }

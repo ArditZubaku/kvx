@@ -9,7 +9,7 @@ import (
 	"github.com/ArditZubaku/kvx/core"
 )
 
-func readCommands(conn io.ReadWriter) ([]*core.RedisCmd, error) {
+func readCommands(conn io.ReadWriter) ([]core.RedisCmd, error) {
 	buf := make([]byte, 512)
 	n, err := conn.Read(buf)
 	if err != nil {
@@ -25,8 +25,8 @@ func readCommands(conn io.ReadWriter) ([]*core.RedisCmd, error) {
 	}
 
 	// TODO: Preallocate
-	// cmds := make([]*core.RedisCmd, len(values))
-	cmds := make([]*core.RedisCmd, 0)
+	// cmds := make([]core.RedisCmd, len(values))
+	cmds := make([]core.RedisCmd, 0)
 	for _, val := range values {
 		tokens, err := toArrayString(val.([]any))
 		if err != nil {
@@ -35,7 +35,7 @@ func readCommands(conn io.ReadWriter) ([]*core.RedisCmd, error) {
 
 		cmds = append(
 			cmds,
-			&core.RedisCmd{
+			core.RedisCmd{
 				Cmd:  strings.ToUpper(tokens[0]),
 				Args: tokens[1:],
 			},
@@ -59,7 +59,7 @@ func toArrayString(arr []any) ([]string, error) {
 	return strArr, nil
 }
 
-func respond(cmd []*core.RedisCmd, c *core.Client) {
+func respond(cmd []core.RedisCmd, c *core.Client) {
 	if err := core.EvalAndRespond(cmd, c); err != nil {
 		// respond with error
 		_, fErr := fmt.Fprintf(c, "-%s\r\n", err)

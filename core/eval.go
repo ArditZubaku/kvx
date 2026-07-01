@@ -24,7 +24,7 @@ func init() {
 	txnCmds = map[string]bool{"EXEC": true, "DISCARD": true}
 }
 
-func EvalAndRespond(cmds []*RedisCmd, c *Client) error {
+func EvalAndRespond(cmds []RedisCmd, c *Client) error {
 	// TODO: Pick something better for the capacity
 	// NOTE: The slice should have a length of 0
 	response := make([]byte, 0, len(cmds)*2)
@@ -54,7 +54,7 @@ func EvalAndRespond(cmds []*RedisCmd, c *Client) error {
 	return err
 }
 
-func executeCommand(cmd *RedisCmd, c *Client) []byte {
+func executeCommand(cmd RedisCmd, c *Client) []byte {
 	switch cmd.Cmd {
 	case "PING":
 		return evalPING(cmd.Args)
@@ -99,7 +99,7 @@ func executeCommand(cmd *RedisCmd, c *Client) []byte {
 	}
 }
 
-func executeCommandToBuffer(buf *bytes.Buffer, cmd *RedisCmd, c *Client) {
+func executeCommandToBuffer(buf *bytes.Buffer, cmd RedisCmd, c *Client) {
 	buf.Write(executeCommand(cmd, c))
 }
 
