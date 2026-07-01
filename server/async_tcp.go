@@ -13,8 +13,6 @@ import (
 	"github.com/ArditZubaku/kvx/core"
 )
 
-var connectedClients = 0
-
 // TODO: Redis does it 10x a second, maybe make this configurable.
 var (
 	cronFrequency    = 1 * time.Second
@@ -22,6 +20,13 @@ var (
 )
 
 var eStatus = EngineStatus.Waiting
+
+// TODO: Rethink whether to make this int32 - https://pkg.go.dev/syscall#EpollEvent.Fd is int32
+var connectedClients map[int]*core.Client
+
+func init() {
+	connectedClients = make(map[int]*core.Client)
+}
 
 func RunAsyncTCPServer() error {
 	defer func() {
@@ -89,7 +94,7 @@ func RunAsyncTCPServer() error {
 			if int(events[i].Fd) == serverFd {
 				acceptClient(serverFd, epollFd)
 			} else {
-				handleClientIO(core.FD(events[i].Fd))
+				handleClientIO(int(events[i].Fd))
 			}
 		}
 
@@ -192,6 +197,8 @@ func acceptClient(serverFd, epollFd int) {
 		log.Printf("Accepted connection from %+v", sockAddr)
 	}
 
+	connectedClients[connFd] = core.NewClient(connFd)
+
 	if err := syscall.SetNonblock(connFd, true); err != nil {
 		log.Printf("SetNonblock error: %+v\n", err)
 		if closeErr := syscall.Close(connFd); closeErr != nil {
@@ -200,8 +207,7 @@ func acceptClient(serverFd, epollFd int) {
 		return
 	}
 
-	connectedClients++
-	log.Println("Current connected clients - ", connectedClients)
+	log.Println("Current connected clients - ", len(connectedClients))
 
 	clientSocketEvent := syscall.EpollEvent{
 		Events: syscall.EPOLLIN,
@@ -214,18 +220,24 @@ func acceptClient(serverFd, epollFd int) {
 }
 
 // handleClientIO reads commands from a connected client fd and writes the response.
-func handleClientIO(fd core.FD) {
-	cmds, err := readCommands(fd)
+func handleClientIO(fd int) {
+	client := connectedClients[fd]
+	if client == nil {
+		return
+	}
+
+	cmds, err := readCommands(client)
 	if err != nil {
-		if closeErr := syscall.Close(int(fd)); closeErr != nil {
+		if closeErr := syscall.Close(fd); closeErr != nil {
 			log.Printf("failed to close conn FD %d: %v\n", fd, closeErr)
 		}
 
-		connectedClients--
-		log.Println("Current connected clients - ", connectedClients)
+		delete(connectedClients, fd)
+
+		log.Println("Current connected clients - ", len(connectedClients))
 
 		return
 	}
 
-	respond(cmds, fd)
+	respond(cmds, client)
 }

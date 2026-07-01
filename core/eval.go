@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"strconv"
 	"time"
@@ -14,49 +13,94 @@ var (
 	nilResponse          = []byte("$-1\r\n")
 	notExistsResponse    = []byte(":-2\r\n")
 	neverExpiresResponse = []byte(":-1\r\n")
+	queuedResponse       = []byte("+QUEUED\r\n")
 	zero                 = []byte(":0\r\n")
 	one                  = []byte(":1\r\n")
 )
 
-func EvalAndRespond(cmds []*RedisCmd, conn io.ReadWriter) error {
+var txnCmds map[string]bool
+
+func init() {
+	txnCmds = map[string]bool{"EXEC": true, "DISCARD": true}
+}
+
+func EvalAndRespond(cmds []*RedisCmd, c *Client) error {
 	// TODO: Pick something better for the capacity
 	// NOTE: The slice should have a length of 0
 	response := make([]byte, 0, len(cmds)*2)
 	buf := bytes.NewBuffer(response)
 
 	for _, cmd := range cmds {
-		switch cmd.Cmd {
-		case "PING":
-			buf.Write(evalPING(cmd.Args))
-		case "SET":
-			buf.Write(evalSET(cmd.Args))
-		case "GET":
-			buf.Write(evalGET(cmd.Args))
-		case "TTL":
-			buf.Write(evalTTL(cmd.Args))
-		case "DEL":
-			buf.Write(evalDEL(cmd.Args))
-		case "EXPIRE":
-			buf.Write(evalEXPIRE(cmd.Args))
-		case "BGREWRITEAOF":
-			buf.Write(evalBGREWRITEAOF())
-		case "INCR":
-			buf.Write(evalINCR(cmd.Args))
-		case "INFO":
-			buf.Write(evalINFO())
-		case "SLEEP":
-			buf.Write(evalSLEEP(cmd.Args))
-		case "CLIENT":
-			buf.Write(evalCLIENT(cmd.Args))
-		case "LATENCY":
-			buf.Write(evalLATENCY(cmd.Args))
-		default:
-			buf.Write(evalPING(cmd.Args))
+		// if not in txn mode, proceed with normal execution
+		if !c.isTxn {
+			executeCommandToBuffer(buf, cmd, c)
+			continue
+		}
+
+		// if the txn is in progress, we enqueue the cmd
+		// and add the QUEUED response to the buffer
+		if !txnCmds[cmd.Cmd] {
+			// if cmd is queueable, then enqueue
+			c.TxnQueue(cmd)
+			buf.Write(queuedResponse)
+		} else {
+			// if txn is active but the cmd is not queueable; ex: EXEC, DISCARD
+			// just execute the cmd normally like the rest
+			executeCommandToBuffer(buf, cmd, c)
 		}
 	}
 
-	_, err := conn.Write(buf.Bytes())
+	_, err := c.Write(buf.Bytes())
 	return err
+}
+
+func executeCommand(cmd *RedisCmd, c *Client) []byte {
+	switch cmd.Cmd {
+	case "PING":
+		return evalPING(cmd.Args)
+	case "SET":
+		return evalSET(cmd.Args)
+	case "GET":
+		return evalGET(cmd.Args)
+	case "TTL":
+		return evalTTL(cmd.Args)
+	case "DEL":
+		return evalDEL(cmd.Args)
+	case "EXPIRE":
+		return evalEXPIRE(cmd.Args)
+	case "BGREWRITEAOF":
+		return evalBGREWRITEAOF()
+	case "INCR":
+		return evalINCR(cmd.Args)
+	case "INFO":
+		return evalINFO()
+	case "CLIENT":
+		return evalCLIENT(cmd.Args)
+	case "LATENCY":
+		return evalLATENCY(cmd.Args)
+	case "SLEEP":
+		return evalSLEEP(cmd.Args)
+	case "MULTI":
+		c.TxnBegin()
+		return evalMULTI(cmd.Args)
+	case "EXEC":
+		if !c.isTxn {
+			return Encode(ErrExecNoMulti)
+		}
+		return c.TxnExec()
+	case "DISCARD":
+		if !c.isTxn {
+			return Encode(ErrDiscardNoMulti)
+		}
+		c.TxnDiscard()
+		return okResponse
+	default:
+		return evalPING(cmd.Args)
+	}
+}
+
+func executeCommandToBuffer(buf *bytes.Buffer, cmd *RedisCmd, c *Client) {
+	buf.Write(executeCommand(cmd, c))
 }
 
 func evalPING(args []string) []byte {
@@ -292,6 +336,10 @@ func evalSLEEP(args []string) []byte {
 
 	time.Sleep(time.Duration(durationSec) * time.Second)
 
+	return okResponse
+}
+
+func evalMULTI(s []string) []byte {
 	return okResponse
 }
 

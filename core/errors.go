@@ -24,4 +24,7 @@ var (
 	ErrNotIntegerOutOfRange = errors.New("ERR value is not an integer or out of range")
 	ErrINCRInvalidArgs      = errors.New("ERR wrong number of arguments for 'incr' command")
 	ErrSLEEPInvalidArgs     = errors.New("ERR wrong number of arguments for 'sleep' command")
+
+	ErrExecNoMulti    = errors.New("ERR EXEC without MULTI")
+	ErrDiscardNoMulti = errors.New("ERR DISCARD without MULTI")
 )
