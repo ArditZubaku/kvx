@@ -1,3 +1,21 @@
+send-pipeline-concurrent:
+	@docker run -it --rm \
+		--network host \
+		busybox sh -c '\
+			PAYLOAD="*1\r\n\$$4\r\nPING\r\n*3\r\n\$$3\r\nSET\r\n\$$1\r\nk\r\n\$$1\r\nv\r\n*2\r\n\$$3\r\nGET\r\n\$$1\r\nk\r\n"; \
+			echo "Spawning 500 concurrent pipeline workers..."; \
+			OUTPUT_FILE=$$(mktemp); \
+			for i in $$(seq 1 500); do \
+				(printf "$$PAYLOAD" | nc -w 1 127.0.0.1 7379 >> $$OUTPUT_FILE &); \
+			done; \
+			wait; \
+			echo "--- Benchmark Results ---"; \
+			echo "Total lines returned: $$(wc -l < $$OUTPUT_FILE)"; \
+			echo "Successful PONGs:    $$(grep -c "PONG" $$OUTPUT_FILE)"; \
+			echo "Successful OKs:      $$(grep -c "OK" $$OUTPUT_FILE)"; \
+			echo "Successful GETs (v): $$(grep -c "v" $$OUTPUT_FILE)"; \
+			rm $$OUTPUT_FILE'
+
 run:
 	@go build -o kvx . && (trap 'go clean; exit' INT TERM EXIT; ./kvx) # runs clean no matter how the program exits
 
