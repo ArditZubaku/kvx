@@ -20,8 +20,24 @@ var (
 
 var txnCmds map[string]bool
 
+var cmdHandlers map[string]func([]string) []byte
+
 func init() {
 	txnCmds = map[string]bool{"EXEC": true, "DISCARD": true}
+	cmdHandlers = map[string]func([]string) []byte{
+		"PING":         evalPING,
+		"SET":          evalSET,
+		"GET":          evalGET,
+		"TTL":          evalTTL,
+		"DEL":          evalDEL,
+		"EXPIRE":       evalEXPIRE,
+		"BGREWRITEAOF": func(_ []string) []byte { return evalBGREWRITEAOF() },
+		"INCR":         evalINCR,
+		"INFO":         func(_ []string) []byte { return evalINFO() },
+		"CLIENT":       evalCLIENT,
+		"LATENCY":      evalLATENCY,
+		"SLEEP":        evalSLEEP,
+	}
 }
 
 func EvalAndRespond(cmds []RedisCmd, c *Client) error {
@@ -55,31 +71,10 @@ func EvalAndRespond(cmds []RedisCmd, c *Client) error {
 }
 
 func executeCommand(cmd RedisCmd, c *Client) []byte {
+	if handler, ok := cmdHandlers[cmd.Cmd]; ok {
+		return handler(cmd.Args)
+	}
 	switch cmd.Cmd {
-	case "PING":
-		return evalPING(cmd.Args)
-	case "SET":
-		return evalSET(cmd.Args)
-	case "GET":
-		return evalGET(cmd.Args)
-	case "TTL":
-		return evalTTL(cmd.Args)
-	case "DEL":
-		return evalDEL(cmd.Args)
-	case "EXPIRE":
-		return evalEXPIRE(cmd.Args)
-	case "BGREWRITEAOF":
-		return evalBGREWRITEAOF()
-	case "INCR":
-		return evalINCR(cmd.Args)
-	case "INFO":
-		return evalINFO()
-	case "CLIENT":
-		return evalCLIENT(cmd.Args)
-	case "LATENCY":
-		return evalLATENCY(cmd.Args)
-	case "SLEEP":
-		return evalSLEEP(cmd.Args)
 	case "MULTI":
 		c.TxnBegin()
 		return evalMULTI(cmd.Args)
