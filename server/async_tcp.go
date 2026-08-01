@@ -84,8 +84,7 @@ func RunAsyncTCPServer() error {
 		// mark engine as Busy only when it is in the waiting state
 		if !atomic.CompareAndSwapInt32(&eStatus, EngineStatus.Waiting, EngineStatus.Busy) {
 			// if swap was unsuccessful then the existing status is not
-			switch eStatus {
-			case EngineStatus.ShuttingDown:
+			if eStatus == EngineStatus.ShuttingDown {
 				return nil
 			}
 		}
